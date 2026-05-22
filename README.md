@@ -2,7 +2,7 @@
 
 A small Flask web app deployed end-to-end through a modern DevOps toolchain — containerised with Docker, orchestrated with Kubernetes, provisioned on AWS with Terraform, configured with Ansible, and wired together by a GitHub Actions CI/CD pipeline. Built as a learning project to cover the core competencies in a junior DevOps role.
 
-![Architecture](docs/architecture.svg)
+![Architecture](docs/devops_portfolio_architecture.svg)
 
 ## What this project demonstrates
 
