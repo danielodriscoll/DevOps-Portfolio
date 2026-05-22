@@ -128,4 +128,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## About me
 
-Built by [Your Name](https://github.com/YOUR-USERNAME) — recent graduate, [link to published research](#), [link to LinkedIn](#).
+Built by [Daniel O'Driscoll](https://github.com/danielodriscoll) — recent graduate, [link to published research](https://link.springer.com/chapter/10.1007/978-3-032-07938-1_16), [link to LinkedIn](www.linkedin.com/in/danielodriscoll1999).
