@@ -1,6 +1,6 @@
 # DevOps Portfolio
 
-A small Flask web app deployed end-to-end through a modern DevOps toolchain — containerised with Docker, orchestrated with Kubernetes, provisioned on AWS with Terraform, configured with Ansible, and wired together by a GitHub Actions CI/CD pipeline. I Built this as a learning project to cover the core competencies involved in a DevOps and software engineering role.
+A small Flask web app deployed end-to-end through a modern DevOps toolchain, containerised with Docker, orchestrated with Kubernetes, provisioned on AWS with Terraform, configured with Ansible, and wired together by a GitHub Actions CI/CD pipeline. I built this as a learning project to cover the core competencies of a DevOps and software engineering role. I worked through it from scratch independently, then used Claude Code to audit the final product for security risks and best-practice violations.
 
 ![Architecture](docs/devops_portfolio_architecture.svg)
 
