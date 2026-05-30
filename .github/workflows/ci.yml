@@ -13,7 +13,7 @@ jobs:
           cache: 'pip'
       - run: pip install -r myapp/requirements.txt
       - run: ruff format .
-      - run: ruff lint .
+      - run: ruff check .
   
   test: 
     runs-on: ubuntu-latest
