@@ -12,7 +12,8 @@ jobs:
           python-version: '3.14' 
           cache: 'pip'
       - run: pip install -r myapp/requirements.txt
-      - run: ruff .
+      - run: ruff format .
+      - run: ruff lint .
   
   test: 
     runs-on: ubuntu-latest
