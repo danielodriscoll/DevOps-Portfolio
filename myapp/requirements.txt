@@ -3,10 +3,8 @@ annotated-types==0.7.0
 ansible==13.7.0
 ansible-core==2.20.6
 anyio==4.13.0
-blinker==1.9.0
 certifi==2026.5.20
 cffi==2.0.0
-click==8.4.1
 cryptography==48.0.0
 detect-installer==0.1.0
 dnspython==2.8.0
@@ -29,7 +27,7 @@ mdurl==0.1.2
 packaging==26.2
 pluggy==1.6.0
 prometheus_client==0.25.0
-prometheus_flask_exporter==0.23.2
+prometheus-fastapi-instrumentator
 pycparser==3.0
 pydantic==2.13.4
 pydantic-extra-types==2.11.1
@@ -56,4 +54,3 @@ uvicorn==0.47.0
 uvloop==0.22.1
 watchfiles==1.2.0
 websockets==16.0
-Werkzeug==3.1.8
