@@ -27,7 +27,7 @@ mdurl==0.1.2
 packaging==26.2
 pluggy==1.6.0
 prometheus_client==0.25.0
-fastapi-instrumentator
+prometheus-fastapi-instrumentator
 pycparser==3.0
 pydantic==2.13.4
 pydantic-extra-types==2.11.1
