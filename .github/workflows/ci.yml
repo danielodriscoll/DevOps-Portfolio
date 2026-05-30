@@ -11,7 +11,7 @@ jobs:
         with:
           python-version: '3.14' 
           cache: 'pip'
-      - run: pip install -r requirements.txt
+      - run: pip install -r app/requirements.txt
       - run: ruff .
   
   test: 
@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: '3.14' 
           cache: 'pip'
-      - run: pip install -r requirements.txt
+      - run: pip install -r app/requirements.txt
       - run: pytest 
   
   build:
