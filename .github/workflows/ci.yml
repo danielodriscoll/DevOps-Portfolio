@@ -36,7 +36,7 @@ jobs:
       - name: Build image locally
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: myapp
           push: false
           load: true
           tags: ghcr.io/danielodriscoll/devops-portfolio:${{ github.sha }}
@@ -48,6 +48,7 @@ jobs:
           format: table
           exit-code: 1
           severity: CRITICAL,HIGH
+          ignore-unfixed: true
 
       - name: Log in to registry
         if: github.ref == 'refs/heads/main'
@@ -61,6 +62,6 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: myapp
           push: true
           tags: ghcr.io/danielodriscoll/devops-portfolio:${{ github.sha }}

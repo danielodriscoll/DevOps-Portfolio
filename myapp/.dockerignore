@@ -1,0 +1,14 @@
+# myapp/.dockerignore
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.key
+*.pem
+.git/
+tests/
+docker-compose.yml
+Dockerfile
+.dockerignore
+*.md
