@@ -112,7 +112,17 @@ Key decisions and trade-offs are documented in [`docs/decisions.md`](docs/decisi
 
 ### Phase 2 — CI/CD
 
-*(...)*
+*(- Using `cache: 'pip'` makes the pipeline faster by restoring dependencies instead of downloading each run.
+
+- Set up branch rules so features can't merge to main unless lint, test and docker-build pass. Also blocks force pushes and deletion of main.
+
+- Scanning an image after pushing it to a registry defeats the point. Changed the flow to lint, test, docker, where docker builds and scans before pushing, and only pushes on main.
+
+- A lot of failed runs were things I could have checked locally first. Running commands like `ruff check .` and `pytest` before pushing saves the push and wait cycle.
+
+- Trivy shows what CVEs are in an image. Learned the difference between fixable and unfixable ones, and that severity doesn't always mean real risk.
+
+- `.gitignore` won't hide sensitive info on Docker image, use dockerignore file)*
 
 ## Final review and hardening
 
