@@ -1,3 +1,5 @@
+#fastapi app to be pushed along CI/CD pipeline
+
 from fastapi import FastAPI
 
 app = FastAPI()
