@@ -1,7 +1,14 @@
 name: CI/CD Pipeline
 
 run-name: ${{github.actor}} is pushing from ${{github.ref}}
-on: [push]
+on:
+  push:
+  pull_request:
+
+permissions:               # ← add this block at the top level
+  contents: read
+  packages: write          # ← THIS allows pushing to GHCR
+  
 jobs:
   lint:
     runs-on: ubuntu-latest
