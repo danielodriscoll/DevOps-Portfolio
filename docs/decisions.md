@@ -12,4 +12,8 @@ I noticed I'm pushing a lot of commits where there's an issue that I could of ch
 
 Trivy vulnerability check is good practice to see what need to be addressed in my image if anything, learned it's very important for .dockerignore file to avoid pushing an image with useless and sensitive data
 
+I changed th epipleine to avoid rebuilding docker image unecessarily as it only ocntains myapp content, skipp docker stpes if myapp folder is unchanged. More eefiecent piplein ethat way. I can update other parts of the project without executing the full pipeline.
+
+Note: technically building the image twice, once before the scan then once after -> need to make more efficent
+
 Phase 3:
