@@ -15,4 +15,4 @@ async def health():
 
 @app.get("/metrics")
 async def metrics():
-    return "Coming in phase 6 of this project"
+    return "Coming in Phase 6 of this project"
