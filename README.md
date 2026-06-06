@@ -90,7 +90,7 @@ make test
 This project will be built incrementally. Each tagged release reflects the completion of one phase.
 
 - [x] **Phase 1** — Fastapi app + Docker
-- [ ] **Phase 2** — GitHub Actions CI/CD pipeline
+- [x] **Phase 2** — GitHub Actions CI/CD pipeline
 - [ ] **Phase 3** — Kubernetes deployment (kind + Helm)
 - [ ] **Phase 4** — AWS infrastructure with Terraform
 - [ ] **Phase 5** — Ansible configuration management
@@ -112,7 +112,8 @@ Key decisions and trade-offs are documented in [`docs/decisions.md`](docs/decisi
 
 ### Phase 2 — CI/CD
 
-*(- Using `cache: 'pip'` makes the pipeline faster by restoring dependencies instead of downloading each run.
+*(
+- Using `cache: 'pip'` makes the pipeline faster by restoring dependencies instead of downloading each run.
 
 - Set up branch rules so features can't merge to main unless lint, test and docker-build pass. Also blocks force pushes and deletion of main.
 
@@ -120,15 +121,21 @@ Key decisions and trade-offs are documented in [`docs/decisions.md`](docs/decisi
 
 - A lot of failed runs were things I could have checked locally first. Running commands like `ruff check .` and `pytest` before pushing saves the push and wait cycle.
 
-- Trivy shows what CVEs are in an image. Learned the difference between fixable and unfixable ones, and that severity doesn't always mean real risk.
+- Trivy shows what CVEs are in an image. Learned the difference between fixable and unfixable ones, and that severity doesn't always mean real risk. Learned to work around unfixable errors.
 
 - `.gitignore` won't hide sensitive info on Docker image, use dockerignore file)*
+
+- Combining lint, pytest and docker build was causing mulitple slow runs together on every push, instead spilt into two worfklows and docker only runs on a pushed tag e.g v0.1.0
+
+- 
+
+### Phase 3 — Kubernetes deployment (kind + Helm)
 
 ## Final review and hardening
 
 After completing all build phases, this project went through a comprehensive code review using Claude Code. The goal was to treat the finished repo the way a senior engineer would on a real PR -> looking for vulnerabilities, anti-patterns, and improvements I'd missed.
 
-Findings, the changes I made in response, and anything I deliberately *didn't* change (and why) are documented in [`docs/review.md`](docs/review.md).
+Findings, the changes I made in response, and anything I deliberately *didn't* change (and why) are documented in [`docs/review.md`](docs/review.md).(Phase8)
 
 This step happened **after** the project was built, the code, decisions, and structure throughout the phases are mine. The review was a final quality gate, not a co-author.
 
