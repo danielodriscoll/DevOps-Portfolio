@@ -6,40 +6,59 @@ I plan to have a small fastapi app deployed end-to-end through a modern DevOps t
 
 ## What this project demonstrates
 
-- **Containerisation** — multi-stage Dockerfile, non-root user, `.dockerignore`
-- **CI/CD** — GitHub Actions pipeline: lint, test, build, scan, push to GHCR
-- **Orchestration** — Kubernetes deployment on a local `kind` cluster, packaged as a Helm chart
-- **Infrastructure as Code** — Terraform-provisioned AWS resources with remote state in S3
-- **Configuration management** — Ansible playbook to configure the EC2 host
-- **Observability** — Prometheus metrics, Grafana dashboards, Loki log aggregation
-- **DevSecOps** — image scanning with Trivy, least-privilege IAM, secrets handled via GitHub Actions
+A single FastAPI service taken through a real DevOps toolchain — containerised, tested and scanned in CI, then deployed to Kubernetes. Built from scratch, one phase at a time.
+
+**Built so far**
+
+- **Containerisation** — FastAPI app packaged with Docker on a slim Python base, with a `.dockerignore` to keep the image small and free of local/secret files
+- **CI/CD** — GitHub Actions: lint + test on every push and PR, plus a release pipeline that builds, Trivy-scans, then pushes the image to GHCR on version tags
+- **Orchestration** — Kubernetes manifests on a local `kind` cluster: a 3-replica Deployment behind a ClusterIP Service, exposed with the Gateway API (Gateway + HTTPRoute), plus ConfigMap and Secret for configuration
+
+**Coming next**
+
+- Helm packaging of the Kubernetes manifests
+- AWS infrastructure with Terraform (EC2 + remote state in S3)
+- Ansible to configure the host
+- Observability with Prometheus, Grafana and Loki
+- A final AI-assisted security and best-practice review
+
+## Project status
+
+| Phase | Area | Status |
+|---|---|---|
+| 1 | FastAPI app + Docker | ✅ Done |
+| 2 | GitHub Actions CI/CD | ✅ Done |
+| 3 | Kubernetes on `kind` | 🚧 Manifests done · Helm in progress |
+| 4 | Terraform on AWS | 📋 Planned |
+| 5 | Ansible configuration | 📋 Planned |
+| 6 | Observability (Prometheus / Grafana / Loki) | 📋 Planned |
 
 ## Tech stack
 
 | Layer | Tool |
 |---|---|
-| Application | Python 3.14, fastapi, gunicorn |
-| Testing & linting | pytest, ruff |
-| Containers | Docker, Docker Compose |
-| Orchestration | Kubernetes (kind), Helm |
-| IaC | Terraform |
-| Config management | Ansible |
+| Application | Python 3.14, FastAPI, Uvicorn |
+| Testing & linting | pytest, Ruff |
+| Containers | Docker |
+| Orchestration | Kubernetes (kind), Gateway API, Helm *(in progress)* |
 | CI/CD | GitHub Actions |
 | Registry | GitHub Container Registry (ghcr.io) |
-| Cloud | AWS (EC2, S3) |
-| Monitoring | Prometheus, Grafana |
-| Logging | Loki, Promtail |
-| Security | Trivy |
+| Image scanning | Trivy |
+| Cloud & IaC | AWS (EC2, S3), Terraform *(planned)* |
+| Config management | Ansible *(planned)* |
+| Observability | Prometheus, Grafana, Loki *(planned)* |
 
 ## Repository structure
 
 ```
 .
-├── app/                # FastApi application + Dockerfile
-├── k8s/                # Kubernetes manifests (raw) and Helm chart
-├── terraform/          # AWS infrastructure as code
-├── ansible/            # EC2 configuration playbooks
-├── observability/      # Prometheus, Grafana, Loki configuration
+├── myapp/              # FastAPI app, Dockerfile, tests
+├── k8s/
+│   ├── raw/            # Kubernetes manifests (Deployment, Service, Gateway, HTTPRoute, ConfigMap, Secret)
+│   └── helm/           # Helm chart (in progress)
+├── terraform/          # AWS infrastructure as code (planned)
+├── ansible/            # Host configuration playbooks (planned)
+├── observability/      # Prometheus, Grafana, Loki configuration (planned)
 ├── .github/workflows/  # CI/CD pipelines
 └── docs/               # Architecture diagram and ADRs
 ```
@@ -49,37 +68,61 @@ I plan to have a small fastapi app deployed end-to-end through a modern DevOps t
 ### Prerequisites
 
 - Python 3.14+
-- Docker Desktop
-- Make (optional, but recommended)
+- Docker
+- `kind` + `kubectl` (only for the Kubernetes deployment)
 
-### Run locally
+### Run the app locally
 
 ```bash
 # Clone and enter the repo
-git clone https://github.com/YOUR-USERNAME/devops-portfolio.git
+git clone https://github.com/danielodriscoll/devops-portfolio.git
 cd devops-portfolio
 
 # Set up the Python environment
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r app/requirements.txt
+pip install -r myapp/requirements.txt
 
-# Run the app via Docker
-make up
+# Start the dev server (http://localhost:8000)
+fastapi dev myapp/main.py
 
-# Verify it's running
+# In another terminal, verify it's running
+curl localhost:8000/health
+```
+
+### Run with Docker
+
+```bash
+cd myapp
+docker build -t devops-portfolio .
+docker run -p 8080:80 devops-portfolio
+
 curl localhost:8080/health
 ```
 
 ### Run the tests
 
 ```bash
-make test
+pytest -v
 ```
 
 ### Deploy to a local Kubernetes cluster
 
-*(Phase 3 — coming soon)*
+```bash
+# Spin up a local cluster
+kind create cluster
+
+# Install the Gateway API CRDs and an nginx Gateway controller first,
+# then apply the manifests
+kubectl apply -f k8s/raw/
+
+# Check the 3 pods come up
+kubectl get pods
+
+# Port-forward the service and hit the app
+kubectl port-forward service/fastapi-app 8080:80
+curl localhost:8080/health
+```
 
 ### Deploy to AWS
 
@@ -106,9 +149,13 @@ Key decisions and trade-offs are documented in [`docs/decisions.md`](docs/decisi
 
 *(Update as I complete each phase.)*
 
-### Phase 1 — Fastapi app + Docker
+### Phase 1 — FastAPI app + Docker
 
-*(Update!)*
+- Used the `python:3.14-slim` base image instead of the full image — smaller container, less surface area, fewer CVEs for Trivy to flag later.
+- A `.dockerignore` matters even this early — it keeps the venv, caches and local files out of the image so it stays small and doesn't ship anything I don't want in there.
+- Added a `/health` endpoint from the start, since that's what Kubernetes uses for liveness/readiness probes in Phase 3 — cheaper to build it in now than bolt it on later.
+- Wrote tests for the happy paths and a 404 so the Phase 2 pipeline has something real to check before it ever builds an image.
+- The container listens on port 80 internally, so I map it with `-p 8080:80` when running locally to avoid clashing with other things.
 
 ### Phase 2 — CI/CD
 
