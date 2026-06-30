@@ -1,0 +1,11 @@
+
+apiVersion: v1    #kubernetes API
+kind: ConfigMap   #type of resource were creating - the Schema to use
+metadata:
+  name: fastapi-config    #The name of the config file
+  namespace: default      # Groups resources within a cluster and isolates them 
+data:
+  APP_ENV: "development"    #tells our app (container) what environment were in, instead of changing deployment code can just change the configmap to switch config settings
+  LOG_LEVEL: "info"         # how much logging you wnat
+  APP_PORT: "80"              
+

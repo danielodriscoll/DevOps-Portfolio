@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app-deployment
+  labels:
+    app: my-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: my-app
+        image: ghcr.io/danielodriscoll/devops-portfolio:v0.1.1  
+        ports:
+        - containerPort: 80
+      envFrom:
+      - configMapRef:
+        name: fastapi-config      # this would ideally pull form hashicorp vault or somewhere more secure, just temporary
+      - secretRef:
+        name: fastapi-secret      # this would ideally pull form hashicorp vault or somewhere more secure, just temporary

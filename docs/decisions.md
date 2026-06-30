@@ -17,3 +17,15 @@ I changed th epipleine to avoid rebuilding docker image unecessarily as it only 
 Note: technically building the image twice, once before the scan then once after -> need to make more efficent
 
 Phase 3:
+"Kind" acts like a kubernetes cluster, whether a server or VM etc, Learned that kubectl connects to the cluster (it's where I write most commands)
+
+If updating image version that's on the cluster, I can apply deployment.yaml with new path to new image version on ghcr.io to kubectl (cluster brain) or i can do it on the command line as a set image argument, this causes rollout across pods where pods scale up +1 to 4 pods, then remove one old pod, ensures always 3 pods availble for failover
+
+Can check pod logs which helps with tracking and debugging issues
+
+Note, you can set revision number/tag to a rollout so that if there's issuse you can revert back to previous versions
+
+Learned Ingress is not longer in development or being updated , so i decided to build kubernetes gateway instead
+
+## Security Note
+In production, secrets would be managed via HashiCorp Vault or AWS Secrets Manager, not stored in yaml files.
