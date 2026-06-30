@@ -1,0 +1,16 @@
+#Service Object decouples frontend users from which pod is being used through the network in the backend
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastapi-app                 # teh actual name of the service object, useful for multiple services, e.g. database-service, frontend-service
+  labels:
+    app: my-app                     # labels are for my use only not reuwired, helps group objects together and easily look for items e.g. kubectl get all -l app=my-app
+spec:
+  type: ClusterIP                   #internal pods can see this service only
+  selector:
+    app: my-app
+  ports:
+    - name: http          # just a label to avoid hardcoding 80 everytim ewe tried to acess thos service, we can say ports.http
+      port: 80
+      targetPort: 80
