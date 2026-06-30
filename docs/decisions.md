@@ -29,3 +29,5 @@ Learned Ingress is not longer in development or being updated , so i decided to 
 
 ## Security Note
 In production, secrets would be managed via HashiCorp Vault or AWS Secrets Manager, not stored in yaml files.
+
+I went with Gateway API over Ingress because it separates infrastructure ownership from application routing using proper typed fields instead of vendor-specific annotations, and because the community ingress-nginx controller hit end of life in March 2026
