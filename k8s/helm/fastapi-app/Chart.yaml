@@ -1,0 +1,8 @@
+apiVersion: v2
+
+name: fastapi-app
+description: A Helm Chart for the FastAPI App in my Devops-Portfolio
+type: application   #type of chart used, in this case we wnat to deploy an app so we use applictaion
+
+version: 0.1.0  #You change this if you change the chart - major.minor.patch
+appVersion: "v0.1.1"    #just informational, not needed, tells us what docker image tag were using
