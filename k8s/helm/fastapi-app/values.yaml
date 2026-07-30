@@ -1,0 +1,52 @@
+appName: fastapi-app
+
+replicaCount: 3
+
+# Docker settings
+image:
+  repository: ghcr.io/danielodriscoll/devops-portfolio
+  tag: "v0.1.1"
+  pullPolicy: IfNotPresent
+
+# Service settings
+service:
+  type: ClusterIP
+  port: 80
+
+# Application settings
+app:
+  env: "development"
+  logLevel: "info"
+  port: "80"
+
+# ConfigMap settings
+configMap:
+  name: fastapi-config
+
+# Secret settings
+secret:
+  name: fastapi-secret
+
+# Gateway settings
+gateway:
+  name: fastapi-gateway
+  className: nginx
+
+# HTTPRoute settings
+httproute:
+  name: fastapi-route
+
+# Resource settings (kept conservative for local kind cluster on limited hardware)
+resources:
+  requests:
+    cpu: "50m"
+    memory: "64Mi"
+  limits:
+    cpu: "150m"
+    memory: "128Mi"
+
+# Autoscaling settings (for the HPA, when you add it)
+autoscaling:
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilization: 70
