@@ -1,0 +1,63 @@
+name: CI/CD Pipeline
+
+run-name: ${{github.actor}} is pushing from ${{github.ref}}
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: 'pip'
+      - run: pip install -r myapp/requirements.txt
+      - run: ruff format --check .
+      - run: ruff check .
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: 'pip'
+      - run: pip install -r myapp/requirements.txt
+      - run: pytest -v
+  
+  helm-lint:
+    runs-on: ubuntu-latest
+    steps:
+        - uses: actions/checkout@v6
+        - name: Install Helm
+          uses: azure/setup-helm@v6
+        - name: Lint helm Chart
+          run: helm lint ./k8s/helm/fastapi-app 
+  
+  kubeconform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Helm
+        uses: azure/setup-helm@v6
+      - name: Install kubeconform                                    # NEW — install the binary onto the runner
+        run: |
+          curl -Lo kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-amd64.tar.gz
+          tar -xzf kubeconform.tar.gz
+          sudo mv kubeconform /usr/local/bin/                        # put it on PATH so the next step can call it
+      - name: Render and validate manifests
+        run: |
+          helm template fastapi-app ./k8s/helm/fastapi-app > rendered.yaml
+          kubeconform -summary -strict \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            rendered.yaml
+
+  
