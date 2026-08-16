@@ -1,0 +1,125 @@
+---
+# Source: fastapi-app/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: fastapi-secret
+  namespace: default
+type: Opaque
+data:
+  PLACEHOLDER: ""
+---
+# Source: fastapi-app/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fastapi-config
+  namespace: default
+data:
+  APP_ENV: "development"
+  LOG_LEVEL: "info"
+  APP_PORT: "80"
+---
+# Source: fastapi-app/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastapi-app
+  labels:
+    app: fastapi-app
+spec:
+  type: ClusterIP
+  selector:
+    app: fastapi-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+---
+# Source: fastapi-app/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi-app-deployment
+  labels:
+    app: fastapi-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: fastapi-app
+  template:
+    metadata:
+      labels:
+        app: fastapi-app
+    spec:
+      containers:
+        - name: fastapi-app
+          image: "ghcr.io/danielodriscoll/devops-portfolio:v0.1.1"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: fastapi-config
+            - secretRef:
+                name: fastapi-secret
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "150m"
+              memory: "128Mi"
+---
+# Source: fastapi-app/templates/hpa.yaml
+apiVersion: autoscaling/v2                          # HPA's own schema — separate from apps/v1 (Deployments)
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fastapi-app-hpa
+spec:
+  scaleTargetRef:                                    # WHICH Deployment this HPA controls
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fastapi-app-deployment          # must exactly match your Deployment's real name
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:                                           # WHAT signal drives scaling decisions
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+# Source: fastapi-app/templates/gateway.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: fastapi-gateway
+spec:
+  gatewayClassName: nginx
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+---
+# Source: fastapi-app/templates/httproute.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: fastapi-route
+spec:
+  parentRefs:
+    - name: fastapi-gateway
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: fastapi-app
+          port: 80
