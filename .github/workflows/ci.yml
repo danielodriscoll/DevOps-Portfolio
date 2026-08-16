@@ -37,7 +37,7 @@ jobs:
     steps:
         - uses: actions/checkout@v6
         - name: Install Helm
-          uses: azure/setup-helm@v6
+          uses: azure/setup-helm@v4
         - name: Lint helm Chart
           run: helm lint ./k8s/helm/fastapi-app 
   
@@ -46,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Install Helm
-        uses: azure/setup-helm@v6
+        uses: azure/setup-helm@v4
       - name: Install kubeconform                                    # NEW — install the binary onto the runner
         run: |
           curl -Lo kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-amd64.tar.gz
