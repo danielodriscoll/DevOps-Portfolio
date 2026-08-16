@@ -59,3 +59,8 @@ So writing the CI jobs for Helm linter and Kubeconform (kubernetes syntax) I ran
 
 when installing kubeconfrom there is actions/ based repos that we can download from the community but its not very well trusted and offical, so safer to downlaod the binary and adjust it myself with shell script, unlike azure/setup-helm which is an offcial microsft action.
 
+Ran kubeconform locally but had an error with HTTProute and Gateway Schemas. This happened because kubeconfrom is for core kubernetes types, to get around this we use -schema-location to point to a custome resource definition for API gateway and HTTProute on the community driven datreeio/CRDs-catalog. How do I ensure these comunity repos are safe and ensure security when auto downlaodingd CRDS?
+
+Finsihed two workflows, tagged a new version fo rmy main repo and it failed  atrivy scan. I realised my requirements.txt contains devops tooling unrelated to the fastapi app being deployed and shipped to cloud. Like it doesnt not need ansible and pytest in it when being shipped. This is why my images were taking awhile to be built and scanned so spotted a security and bloating issue with trivy!
+
+Discovered anothe rproblem, CI pipeline installs requirements.txt and needs ruff and lint from there to check code, but this conflictsa the idea of having runtime only requirmeents, so it' srecoomened to do two requirements , runtime one and devlopment&testing one. SO i Made two. One of tools and one of app only requirements.

@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
 
-      - name: Build image locally
+      - name: Build image locallygit checkou
         uses: docker/build-push-action@v5
         with:
           context: myapp
