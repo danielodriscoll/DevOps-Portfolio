@@ -66,3 +66,7 @@ Finsihed two workflows, tagged a new version fo rmy main repo and it failed  atr
 Discovered anothe rproblem, CI pipeline installs requirements.txt and needs ruff and lint from there to check code, but this conflictsa the idea of having runtime only requirmeents, so it' srecoomened to do two requirements , runtime one and devlopment&testing one. SO i Made two. One of tools and one of app only requirements.
 
 Issue with trivy flagging high CVE's, after debugging it' snot to do with my app or its dependencies or even my requirements. It was the python:3.14-slim image used in th edocker file has underlying dependencies e.g. setuptools that are outdated. So trivy caught issues that I didn't really think were associated with me and my build. Fix is to update setuptools with RUN pip install --no-cache-dir --upgrade pip setuptools wheel in docker file. Why not just update everything to latest version? - could be riskyy and break code or unexpected beahvior.
+
+Build tools (pip, setuptools, wheel) are needed to assemble an image but not to run the app. In a single-stage build they get shipped in the final image, adding vulnerabilities and bloat. A multi-stage build installs everything in a throwaway build stage, then copies only the finished app into a clean final stage, so build tooling (and its stale vendored files) never reaches production. This is the standard fix for 'build-tool CVEs in the runtime image.'
+
+I've opted to rewrite my dockerfile into a multistage build file 
