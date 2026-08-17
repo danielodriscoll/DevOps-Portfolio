@@ -6,30 +6,28 @@ I plan to have a small fastapi app deployed end-to-end through a modern DevOps t
 
 ## What this project demonstrates
 
-A single FastAPI service taken through a real DevOps toolchain — containerised, tested and scanned in CI, then deployed to Kubernetes. Built from scratch, one phase at a time.
+A single FastAPI service taken through a real DevOps toolchain, containerised, tested and scanned in CI, then deployed to Kubernetes. Built from scratch, one phase at a time.
 
 **Built so far**
 
-- **Containerisation** — FastAPI app packaged with Docker on a slim Python base, with a `.dockerignore` to keep the image small and free of local/secret files
-- **CI/CD** — GitHub Actions: lint + test on every push and PR, plus a release pipeline that builds, Trivy-scans, then pushes the image to GHCR on version tags
-- **Orchestration** — Kubernetes manifests on a local `kind` cluster: a 3-replica Deployment behind a ClusterIP Service, exposed with the Gateway API (Gateway + HTTPRoute), plus ConfigMap and Secret for configuration
+- **Containerisation** → FastAPI app packaged with Docker using a multi-stage build on a slim Python base, with a `.dockerignore` to keep the image small and free of local/secret files
+- **CI/CD** → GitHub Actions: lint and test on every push and PR, plus a release pipeline that builds, Trivy-scans, then pushes the image to GHCR on version tags
+- **Orchestration** → FastAPI service on a local `kind` cluster, packaged as a Helm chart: a Deployment behind a ClusterIP Service, exposed with the Gateway API (Gateway + HTTPRoute via NGINX Gateway Fabric), with ConfigMap and Secret for configuration, and a HorizontalPodAutoscaler that scales on CPU load
+- **Manifest validation** → `helm lint` and `kubeconform` run in CI to catch malformed Kubernetes/Helm config before merge
 
 **Coming next**
 
-- Helm packaging of the Kubernetes manifests
 - AWS infrastructure with Terraform (EC2 + remote state in S3)
 - Ansible to configure the host
 - Observability with Prometheus, Grafana and Loki
 - A final AI-assisted security and best-practice review
 
-## Project status
-
 | Phase | Area | Status |
 |---|---|---|
 | 1 | FastAPI app + Docker | ✅ Done |
 | 2 | GitHub Actions CI/CD | ✅ Done |
-| 3 | Kubernetes on `kind` | 🚧 Manifests done · Helm in progress |
-| 4 | Terraform on AWS | 📋 Planned |
+| 3 | Kubernetes on `kind` (Helm + Gateway API + HPA) | ✅ Done |
+| 4 | Terraform on AWS | 🚧 In progress |
 | 5 | Ansible configuration | 📋 Planned |
 | 6 | Observability (Prometheus / Grafana / Loki) | 📋 Planned |
 
@@ -40,7 +38,7 @@ A single FastAPI service taken through a real DevOps toolchain — containerised
 | Application | Python 3.14, FastAPI, Uvicorn |
 | Testing & linting | pytest, Ruff |
 | Containers | Docker |
-| Orchestration | Kubernetes (kind), Gateway API, Helm *(in progress)* |
+| Orchestration | Kubernetes (kind), Gateway API, Helm |
 | CI/CD | GitHub Actions |
 | Registry | GitHub Container Registry (ghcr.io) |
 | Image scanning | Trivy |
@@ -54,8 +52,7 @@ A single FastAPI service taken through a real DevOps toolchain — containerised
 .
 ├── myapp/              # FastAPI app, Dockerfile, tests
 ├── k8s/
-│   ├── raw/            # Kubernetes manifests (Deployment, Service, Gateway, HTTPRoute, ConfigMap, Secret)
-│   └── helm/           # Helm chart (in progress)
+│   └── helm/           # Helm chart (Deployment, Service, Gateway, HTTPRoute, ConfigMap, Secret, HPA)
 ├── terraform/          # AWS infrastructure as code (planned)
 ├── ansible/            # Host configuration playbooks (planned)
 ├── observability/      # Prometheus, Grafana, Loki configuration (planned)
@@ -70,6 +67,7 @@ A single FastAPI service taken through a real DevOps toolchain — containerised
 - Python 3.14+
 - Docker
 - `kind` + `kubectl` (only for the Kubernetes deployment)
+- `helm` (only for the Kubernetes deployment)
 
 ### Run the app locally
 
@@ -112,15 +110,14 @@ pytest -v
 # Spin up a local cluster
 kind create cluster
 
-# Install the Gateway API CRDs and an nginx Gateway controller first,
-# then apply the manifests
-kubectl apply -f k8s/raw/
+# Install the Gateway API CRDs and NGINX Gateway Fabric controller first, then:
+helm install fastapi-app ./k8s/helm/fastapi-app
 
-# Check the 3 pods come up
+# Check the pods come up
 kubectl get pods
 
-# Port-forward the service and hit the app
-kubectl port-forward service/fastapi-app 8080:80
+# Port-forward the Gateway and hit the app
+kubectl port-forward -n nginx-gateway svc/ngf-nginx-gateway-fabric 8080:80
 curl localhost:8080/health
 ```
 
@@ -134,7 +131,7 @@ This project will be built incrementally. Each tagged release reflects the compl
 
 - [x] **Phase 1** — Fastapi app + Docker
 - [x] **Phase 2** — GitHub Actions CI/CD pipeline
-- [ ] **Phase 3** — Kubernetes deployment (kind + Helm)
+- [x] **Phase 3** — Kubernetes deployment (kind + Helm)
 - [ ] **Phase 4** — AWS infrastructure with Terraform
 - [ ] **Phase 5** — Ansible configuration management
 - [ ] **Phase 6** — Observability (Prometheus, Grafana, Loki)
@@ -151,40 +148,46 @@ Key decisions and trade-offs are documented in [`docs/decisions.md`](docs/decisi
 
 ### Phase 1 — FastAPI app + Docker
 
-- Used the `python:3.14-slim` base image instead of the full image — smaller container, less surface area, fewer CVEs for Trivy to flag later.
-- A `.dockerignore` matters even this early — it keeps the venv, caches and local files out of the image so it stays small and doesn't ship anything I don't want in there.
-- Added a `/health` endpoint from the start, since that's what Kubernetes uses for liveness/readiness probes in Phase 3 — cheaper to build it in now than bolt it on later.
+- Used the `python:3.14-slim` base image instead of the full image → smaller container, less surface area, fewer CVEs for Trivy to flag later.
+- A `.dockerignore` matters even this early → it keeps the venv, caches and local files out of the image so it stays small and doesn't ship anything I don't want in there.
+- Added a `/health` endpoint from the start, since that's what Kubernetes uses for liveness/readiness probes in Phase 3 → cheaper to build it in now than bolt it on later.
 - Wrote tests for the happy paths and a 404 so the Phase 2 pipeline has something real to check before it ever builds an image.
 - The container listens on port 80 internally, so I map it with `-p 8080:80` when running locally to avoid clashing with other things.
 
 ### Phase 2 — CI/CD
 
-*(
 - Using `cache: 'pip'` makes the pipeline faster by restoring dependencies instead of downloading each run.
-
 - Set up branch rules so features can't merge to main unless lint, test and docker-build pass. Also blocks force pushes and deletion of main.
-
 - Scanning an image after pushing it to a registry defeats the point. Changed the flow to lint, test, docker, where docker builds and scans before pushing, and only pushes on main.
-
 - A lot of failed runs were things I could have checked locally first. Running commands like `ruff check .` and `pytest` before pushing saves the push and wait cycle.
-
 - Trivy shows what CVEs are in an image. Learned the difference between fixable and unfixable ones, and that severity doesn't always mean real risk. Learned to work around unfixable errors.
-
-- `.gitignore` won't hide sensitive info on Docker image, use dockerignore file)*
-
-- Combining lint, pytest and docker build was causing mulitple slow runs together on every push, instead spilt into two worfklows and docker only runs on a pushed tag e.g v0.1.0
-
-- 
+- `.gitignore` won't hide sensitive info on a Docker image, use a `.dockerignore` file.
+- Combining lint, pytest and docker build was causing multiple slow runs together on every push. Split into two workflows, and docker only runs on a pushed tag e.g. `v0.1.0`.
 
 ### Phase 3 — Kubernetes deployment (kind + Helm)
 
+- `kind` runs a real Kubernetes cluster inside Docker; `kubectl` is how you talk to it. Rolling out a new image version (via `kubectl set image` or an updated Deployment) scales pods up by one then removes an old one, keeping the app available throughout, and rollouts are tagged so you can revert.
+- Chose the Gateway API over Ingress: it separates infrastructure ownership (the Gateway) from application routing (the HTTPRoute) using proper typed fields instead of vendor-specific annotations, and the community `ingress-nginx` controller reached end of life in March 2026.
+- Converted the hardcoded raw manifests into a Helm chart → templated values with a single `values.yaml`, so changing config no longer means editing every file. Removed the raw files afterward to avoid confusion; the templated placeholders are harder to read, but the reusability, rollback, and single source of truth are worth it.
+- Hit a Helm ownership error: it refused to adopt a Service that already existed from an earlier `kubectl apply`, because it lacked Helm's management labels. Fixed by deleting the raw objects first, then letting Helm create everything fresh with proper ownership metadata.
+- The HorizontalPodAutoscaler needs `metrics-server` to read pod CPU/memory. On `kind` it failed its readiness check with a 500 because kubelet's self-signed certs aren't trusted by default → patched it with `--kubelet-insecure-tls`, acceptable for local dev but not production.
+- When the HPA is active it overrides the replica count set in the Deployment/values → I set 3, it scaled down to my configured minimum of 2 based on real CPU usage.
+- Load-tested with `hey` (10 concurrent users for 60s through the Gateway) to push CPU past the 70% target → watched the HPA scale from 2 to 4 replicas, then back down after a ~5 minute cooldown. Used `kubectl port-forward` to point a laptop port at the Gateway for the test.
+- Added `helm lint` and `kubeconform` as CI jobs. Helm's `{{ }}` templating isn't valid Kubernetes YAML, so `helm template` renders it to a plain file first, which kubeconform then validates. Gateway/HTTPRoute aren't core Kubernetes types, so kubeconform needs `-schema-location` pointing at a CRD schema catalogue to validate them.
+- Installed kubeconform via its official release binary rather than a community GitHub Action → for a trivial download, rolling it myself avoids adding an unvetted third-party dependency to the pipeline (unlike `azure/setup-helm`, which is an official Microsoft action).
+- Trivy caught that my `requirements.txt` (generated with `pip freeze`) was shipping unrelated tooling (Ansible, pytest, ruff) inside the production image, causing both bloat and vulnerabilities. Split into a runtime `requirements.txt` and a separate dev/test one; the image installs only runtime deps, CI installs both.
+- The remaining Trivy findings weren't my code at all → they were outdated build tools (`setuptools`, `wheel`) baked into the `python:3.14-slim` base image. Rewrote the Dockerfile as a multi-stage build so build tooling stays in a throwaway stage and never reaches the final image, and stripped the leftover build tools from the runtime stage to clear the last vendored-copy CVEs.
+- Learned the practical shape of vulnerability management: you don't fix it once. Some findings are unfixable (awaiting upstream), some aren't real risk in context, and the goal is to patch what you cleanly can, minimise attack surface, and document the rest.
+
+**Security note:** secrets here are placeholders in the Helm chart. In production these would come from a secrets manager (AWS Secrets Manager or HashiCorp Vault), not committed YAML, something I'll wire in when AWS lands in Phase 4.
+
 ## Final review and hardening
 
-After completing all build phases, this project went through a comprehensive code review using Claude Code. The goal was to treat the finished repo the way a senior engineer would on a real PR -> looking for vulnerabilities, anti-patterns, and improvements I'd missed.
+After completing all build phases, this project went through a comprehensive code review using Claude Code. The goal was to treat the finished repo the way a senior engineer would on a real PR → looking for vulnerabilities, anti-patterns, and improvements I'd missed.
 
-Findings, the changes I made in response, and anything I deliberately *didn't* change (and why) are documented in [`docs/review.md`](docs/review.md).(Phase8)
+Findings, the changes I made in response, and anything I deliberately *didn't* change (and why) are documented in [`docs/review.md`](docs/review.md). (Phase 8)
 
-This step happened **after** the project was built, the code, decisions, and structure throughout the phases are mine. The review was a final quality gate, not a co-author.
+This step happened **after** the project was built; the code, decisions, and structure throughout the phases are mine. The review was a final quality gate, not a co-author.
 
 ## License
 
