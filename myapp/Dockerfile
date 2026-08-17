@@ -8,13 +8,14 @@ RUN pip install --no-cache-dir --upgrade --target=/install -r /code/requirements
 FROM python:3.14-slim
 WORKDIR /code
 
-# Update OS packages to patch Debian-layer CVEs (the 9 findings)
+# Update OS packages to patch Debian-layer CVEs
 RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 
-# Upgrade the base image's own build tools to patched versions (fixes setuptools)
-RUN pip install --no-cache-dir --upgrade "setuptools>=78.1.1" pip
-
+# Copy your installed dependencies from the builder
 COPY --from=builder /install /usr/local/lib/python3.14/site-packages
 COPY . /code/myapp
+
+# Remove pip and setuptools — not needed at runtime, and their vendored copies trip Trivy
+RUN pip uninstall -y pip setuptools 2>/dev/null || true
 
 CMD ["fastapi", "run", "myapp/main.py", "--port", "80"]
