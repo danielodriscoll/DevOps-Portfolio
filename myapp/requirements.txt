@@ -5,3 +5,4 @@ pydantic-settings==2.14.1
 python-multipart==0.0.30
 prometheus-fastapi-instrumentator==8.1.0
 python-dotenv==1.2.2
+msgpack==1.2.1

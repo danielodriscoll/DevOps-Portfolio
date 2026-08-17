@@ -17,12 +17,13 @@ jobs:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
 
-      - name: Build image locallygit checkou
+      - name: Build image locally
         uses: docker/build-push-action@v5
         with:
           context: myapp
           push: false
           load: true
+          pull: true
           tags: ghcr.io/danielodriscoll/devops-portfolio:${{ github.ref_name }}
 
       - name: Scan with Trivy
@@ -46,6 +47,7 @@ jobs:
         with:
           context: myapp
           push: true
+          pull: true
           tags: |
             ghcr.io/danielodriscoll/devops-portfolio:${{ github.ref_name }}
             ghcr.io/danielodriscoll/devops-portfolio:latest
