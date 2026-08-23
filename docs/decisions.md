@@ -1,6 +1,6 @@
-Phase 1:
+## Phase 1:
 
-Phase 2:
+## Phase 2:
 I found that i can use cache 'pip' on fresh vm, so the the next time the pipline is called, it's much quicker and efficent in loading previous requirements.txt
 
 Learned how to set rules, stopped branches from merging to main on GitHub unless they pass the worflow checks -> LINT, TEST, BUILD
@@ -16,7 +16,7 @@ I changed th epipleine to avoid rebuilding docker image unecessarily as it only 
 
 Note: technically building the image twice, once before the scan then once after -> need to make more efficent
 
-Phase 3:
+## Phase 3:
 "Kind" acts like a kubernetes cluster, whether a server or VM etc, Learned that kubectl connects to the cluster (it's where I write most commands)
 
 If updating image version that's on the cluster, I can apply deployment.yaml with new path to new image version on ghcr.io to kubectl (cluster brain) or i can do it on the command line as a set image argument, this causes rollout across pods where pods scale up +1 to 4 pods, then remove one old pod, ensures always 3 pods availble for failover
@@ -27,7 +27,7 @@ Note, you can set revision number/tag to a rollout so that if there's issuse you
 
 Learned Ingress is not longer in development or being updated , so i decided to build kubernetes gateway instead
 
-## Security Note
+Security Note:
 In production, secrets would be managed via HashiCorp Vault or AWS Secrets Manager, not stored in yaml files.
 
 I went with Gateway API over Ingress because it separates infrastructure ownership from application routing using proper typed fields instead of vendor-specific annotations, and because the community ingress-nginx controller hit end of life in March 2026
@@ -70,3 +70,14 @@ Issue with trivy flagging high CVE's, after debugging it' snot to do with my app
 Build tools (pip, setuptools, wheel) are needed to assemble an image but not to run the app. In a single-stage build they get shipped in the final image, adding vulnerabilities and bloat. A multi-stage build installs everything in a throwaway build stage, then copies only the finished app into a clean final stage, so build tooling (and its stale vendored files) never reaches production. This is the standard fix for 'build-tool CVEs in the runtime image.'
 
 I've opted to rewrite my dockerfile into a multistage build file as its better practice as it doesnt add build tools to final image. Still failinh trivy scan on installing tools setupttols, msgpack unde rthe hood of python-slim althouh iv eupdated them to newest versions and have confirmed them its still using old versions or has them which trivy catches? Just removed them from the final image to avoid the error. need a better way of doing this in the furture.
+
+## Phase 4
+I learned that it's good practice to verify company software uisng keys. You download public key locally froM hashicorp, then when your downlaoading or installing software e.g. Terraform, you downlaod it ensureing the signature from matches our Hashicorp key using signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg]
+
+Setting IAM user for terraform, Best practice to not usee root AWS user when accessing services - least privileged access, i'LL START broad for now and tighten as I progress: AmazonEC2FullAccess, AmazonS3FullAccess, IAMReadOnlyAccess. Added IAM user acess key and secret key to AWS CLI locally in the default location (not th ebest practoce but safe fo rthis portfolio) In future it shoul dbe handle by secret manager or IAM Identity center manages SSO
+
+Terraform Bootstrap: I created a small, separate Terraform config that runs once with local state, and its only job is to create the S3 bucket that will store my main infrastructure's remote state. I kept it separate because Terraform can't use a backend bucket to store its own state before that bucket exists. This separation also means the bucket never appears as a managed resource inside my main infrastructure's config, so my main state has no power to modify or destroy the bucket itself, even though it's constantly writing new state versions into it. That protects my state history from being wiped out by a routine change or a terraform destroy on my everyday infrastructure.
+
+I pinned the AWS provider to ~> 5.0 so my setup stays reproducible and doesn't silently break on a major version bump, and set the region to eu-west-1 since it's closest to me. For the state bucket I turned on versioning so I can recover if the state ever gets corrupted, blocked all public access since state can contain sensitive values, and enabled AES256 encryption at rest
+
+variables.tf works like Helm's values.yaml from Phase 3: it declares the configurable inputs the infrastructure needs (region, instance size, my IP), keeping them separate from main.tf, which defines the actual resources. This makes main.tf reusable, the same structure can deploy differently just by supplying different variable values, rather than editing the resource definitions. Sensitive/personal values (like my IP) are declared here but their actual values live in a gitignored terraform.tfvars, so they never get committed.

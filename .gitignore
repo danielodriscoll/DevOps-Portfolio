@@ -35,3 +35,24 @@ Thumbs.db
 # Environment variables (NEVER commit secrets)
 .env
 .env.local
+
+#Kubernetes
+**/secrets.yaml
+**/values-secret*.yaml
+*.dec.yaml
+rendered.yaml         # the helm template output you generated for kubeconform
+charts/*.tgz          # packaged chart archives
+
+# Terraform
+*.tfvars             
+.terraform/          
+*.tfstate             
+*.tfstate.backup
+.terraform.lock.hcl   
+crash.log             
+crash.*.log
+*.tfvars.json         
+override.tf          
+override.tf.json
+.terraformrc         
+terraform.rc
