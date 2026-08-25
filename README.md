@@ -9,30 +9,28 @@ I plan to have a small fastapi app deployed end-to-end through a modern DevOps t
 A single FastAPI service taken through a real DevOps toolchain, containerised, tested and scanned in CI, then deployed to Kubernetes. Built from scratch, one phase at a time.
 
 **Built so far**
-
+ 
 - **Containerisation** → FastAPI app packaged with Docker using a multi-stage build on a slim Python base, with a `.dockerignore` to keep the image small and free of local/secret files
 - **CI/CD** → GitHub Actions: lint and test on every push and PR, plus a release pipeline that builds, Trivy-scans, then pushes the image to GHCR on version tags
 - **Orchestration** → FastAPI service on a local `kind` cluster, packaged as a Helm chart: a Deployment behind a ClusterIP Service, exposed with the Gateway API (Gateway + HTTPRoute via NGINX Gateway Fabric), with ConfigMap and Secret for configuration, and a HorizontalPodAutoscaler that scales on CPU load
-- **Manifest validation** → `helm lint` and `kubeconform` run in CI to catch malformed Kubernetes/Helm config before merge
-
+- **Infrastructure as Code** → real AWS infrastructure provisioned with Terraform: an EC2 instance with SSH locked to my IP, encrypted root disk, IMDSv2 enforced, sitting behind a security group. Remote state stored in an encrypted, versioned S3 bucket with native S3 locking. IAM configured with a least-privilege user, not root
+- **Manifest validation** → `helm lint` and `kubeconform` run in CI for Kubernetes/Helm; `terraform fmt`, `terraform validate`, and `tfsec` run in CI for Terraform, catching config issues and security misconfigurations before merge
 **Coming next**
-
-- AWS infrastructure with Terraform (EC2 + remote state in S3)
-- Ansible to configure the host
+ 
+- Ansible to configure the EC2 (install Docker, pull the image, run the container)
 - Observability with Prometheus, Grafana and Loki
 - A final AI-assisted security and best-practice review
-
 | Phase | Area | Status |
 |---|---|---|
 | 1 | FastAPI app + Docker | ✅ Done |
 | 2 | GitHub Actions CI/CD | ✅ Done |
 | 3 | Kubernetes on `kind` (Helm + Gateway API + HPA) | ✅ Done |
-| 4 | Terraform on AWS | 🚧 In progress |
-| 5 | Ansible configuration | 📋 Planned |
+| 4 | Terraform on AWS (EC2 + S3 remote state + tfsec) | ✅ Done |
+| 5 | Ansible configuration | 🚧 In progress |
 | 6 | Observability (Prometheus / Grafana / Loki) | 📋 Planned |
-
+ 
 ## Tech stack
-
+ 
 | Layer | Tool |
 |---|---|
 | Application | Python 3.14, FastAPI, Uvicorn |
@@ -42,7 +40,7 @@ A single FastAPI service taken through a real DevOps toolchain, containerised, t
 | CI/CD | GitHub Actions |
 | Registry | GitHub Container Registry (ghcr.io) |
 | Image scanning | Trivy |
-| Cloud & IaC | AWS (EC2, S3), Terraform *(planned)* |
+| Cloud & IaC | AWS (EC2, S3, IAM), Terraform, tfsec |
 | Config management | Ansible *(planned)* |
 | Observability | Prometheus, Grafana, Loki *(planned)* |
 
@@ -53,11 +51,14 @@ A single FastAPI service taken through a real DevOps toolchain, containerised, t
 ├── myapp/              # FastAPI app, Dockerfile, tests
 ├── k8s/
 │   └── helm/           # Helm chart (Deployment, Service, Gateway, HTTPRoute, ConfigMap, Secret, HPA)
-├── terraform/          # AWS infrastructure as code (planned)
+── terraform/
+│   ├── bootstrap/      # One-off config that creates the S3 state bucket
+│   └── *.tf            # Main config: EC2, security group, key pair, backend
 ├── ansible/            # Host configuration playbooks (planned)
 ├── observability/      # Prometheus, Grafana, Loki configuration (planned)
 ├── .github/workflows/  # CI/CD pipelines
 └── docs/               # Architecture diagram and ADRs
+
 ```
 
 ## Getting started
@@ -68,6 +69,7 @@ A single FastAPI service taken through a real DevOps toolchain, containerised, t
 - Docker
 - `kind` + `kubectl` (only for the Kubernetes deployment)
 - `helm` (only for the Kubernetes deployment)
+- `terraform` + AWS CLI (only for the AWS deployment)
 
 ### Run the app locally
 
@@ -121,9 +123,33 @@ kubectl port-forward -n nginx-gateway svc/ngf-nginx-gateway-fabric 8080:80
 curl localhost:8080/health
 ```
 
-### Deploy to AWS
-
-*(Phase 4 — coming soon)*
+### Deploy to AWS with Terraform
+ 
+```bash
+# Bootstrap the state bucket (only needed once, ever)
+cd terraform/bootstrap
+terraform init
+terraform apply
+ 
+# Deploy the main infrastructure (EC2 + security group + key pair)
+cd ../
+terraform init          # picks up the S3 backend
+terraform plan          # review before applying
+terraform apply         # creates the EC2 — real resources, real (small) cost
+ 
+# Get the public IP and SSH in
+terraform output instance_public_ip
+ssh -i ~/.ssh/id_ed25519 ec2-user@<public-ip>
+ 
+# Tear it down when done for the session — EC2 bills per hour
+terraform destroy
+```
+ 
+You'll need a `terraform/terraform.tfvars` file with your public IP and SSH public key (both gitignored):
+```hcl
+my_ip          = "YOUR.IP/32"
+ssh_public_key = "ssh-ed25519 AAAA..."
+```
 
 ## Build phases
 
@@ -132,7 +158,7 @@ This project will be built incrementally. Each tagged release reflects the compl
 - [x] **Phase 1** — Fastapi app + Docker
 - [x] **Phase 2** — GitHub Actions CI/CD pipeline
 - [x] **Phase 3** — Kubernetes deployment (kind + Helm)
-- [ ] **Phase 4** — AWS infrastructure with Terraform
+- [x] **Phase 4** — AWS infrastructure with Terraform
 - [ ] **Phase 5** — Ansible configuration management
 - [ ] **Phase 6** — Observability (Prometheus, Grafana, Loki)
 - [ ] **Phase 7** — Polish, ADRs, documentation
@@ -179,7 +205,21 @@ Key decisions and trade-offs are documented in [`docs/decisions.md`](docs/decisi
 - The remaining Trivy findings weren't my code at all → they were outdated build tools (`setuptools`, `wheel`) baked into the `python:3.14-slim` base image. Rewrote the Dockerfile as a multi-stage build so build tooling stays in a throwaway stage and never reaches the final image, and stripped the leftover build tools from the runtime stage to clear the last vendored-copy CVEs.
 - Learned the practical shape of vulnerability management: you don't fix it once. Some findings are unfixable (awaiting upstream), some aren't real risk in context, and the goal is to patch what you cleanly can, minimise attack surface, and document the rest.
 
-**Security note:** secrets here are placeholders in the Helm chart. In production these would come from a secrets manager (AWS Secrets Manager or HashiCorp Vault), not committed YAML, something I'll wire in when AWS lands in Phase 4.
+### Phase 4 — AWS infrastructure with Terraform
+ 
+- New AWS accounts (post-July 2025) are on a credit-based Free plan → $100 in credits at signup, up to $200 with onboarding tasks, six-month lifespan. Different from the old 12-month free tier that most tutorials still describe. The upside: the Free plan can't surprise-bill; if credits run out the account just stops.
+- Cost safety comes first, before anything is provisioned: a $1 AWS Budget alert, Free Tier usage alerts, and the habit of `terraform destroy` at the end of every session. The real traps aren't the EC2 itself but the surrounding bits (Elastic IPs, NAT Gateways, orphaned EBS volumes) that keep billing after you think you're clean.
+- Created a dedicated IAM user (`terraform-user`) with programmatic access keys instead of using root credentials. Root should never touch Terraform → if those keys leak, the whole account is gone. The IAM user gets narrower permissions and a separate credential lifecycle.
+- Chicken-and-egg problem with remote state: Terraform's backend config is read *before* it creates anything, so I can't store state in an S3 bucket that Terraform itself hasn't created yet. Solved with a two-step bootstrap → a small `terraform/bootstrap/` config with local state creates the S3 bucket (versioned, encrypted, public access blocked), then the main config's `backend.tf` points at that now-existing bucket for remote state.
+- State is Terraform's *memory* of what it has built — it downloads state at the start of each run, compares against my `.tf` code, and computes the minimal diff. That's what makes Terraform declarative rather than imperative: I describe the desired end state, and it figures out what to change (in-place update, replace, destroy) with `~` and `-/+` symbols in the plan.
+- `variables.tf` declares what inputs the config needs; the actual values go in `terraform.tfvars`, which is gitignored. Same config-vs-value split as Helm's `values.yaml`, same reason: the declaration is public (safe to commit), the values are private (my IP, my SSH public key). Inline comments in `.gitignore` broke the pattern match and nearly leaked my IP → moved them to separate lines.
+- Reading files from local paths (`file("~/.ssh/id_ed25519.pub")`) breaks CI, because the runner doesn't have my SSH key. Refactored to pass the public key as a variable → same effect, no filesystem dependency, config runs anywhere.
+- Home broadband IPs change → SSH suddenly stopped working one morning until I updated `terraform.tfvars` with the new IP and re-applied. Terraform's diff was `1 to change`, not `3 to add`: it modified the security group rule in place and left the EC2 untouched. Concrete demonstration of state doing its job.
+- An EC2 instance has two IPs at once — a public one (how the internet reaches it) and a private one (AWS-internal networking). SSH connects via the public IP; the shell prompt shows the private one as the machine's internal hostname. Together with my own IP (in the firewall rule), there were three IPs in play during a single SSH session.
+- Followed the principle of least exposure: locked *both* SSH and HTTP to my IP during testing, rather than opening HTTP to `0.0.0.0/0` from the start. Opening a port publicly should be a deliberate decision, not a default.
+- Added Terraform validation to CI as two separate jobs: `terraform-validate` runs `fmt -check` and `validate` (using `init -backend=false` so it needs no AWS credentials), and `terraform-security` runs `tfsec` to catch misconfigurations. IaC equivalent of Trivy scanning Docker images.
+- Hardened the EC2 based on tfsec findings: enabled IMDSv2 (blocks SSRF attacks from stealing IAM credentials via the metadata service — the mechanism behind the 2019 Capital One breach) and encrypted the root EBS volume at rest (compliance baseline, free with one flag). Documented and ignored the open-egress finding with an inline `#tfsec:ignore` and prose comment explaining why → the server needs outbound to pull updates and images, egress filtering would be defence-in-depth but is out of scope.
+- Same triage discipline as Trivy in Phase 3: fix what's cheap and real, document-and-accept what's a deliberate trade-off, defer the rest with rationale. That decision trail matters more than a green scan.
 
 ## Final review and hardening
 
