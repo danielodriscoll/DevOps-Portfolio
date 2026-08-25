@@ -13,8 +13,8 @@ data "aws_ami" "amazon_linux" {
 # Create an SSH key pair so you can log into the instance
 # This uploads your LOCAL public key to AWS; you keep the private key to authenticate
 resource "aws_key_pair" "deployer" {
-  key_name   = "devops-portfolio-key"        # name AWS stores it under
-  public_key = file("~/.ssh/id_ed25519.pub") # reads your local public key file
+  key_name   = "devops-portfolio-key" # name AWS stores it under
+  public_key = var.ssh_public_key     # reads your  public key var
 }
 
 # Security group = firewall rules for your instance
@@ -41,7 +41,9 @@ resource "aws_security_group" "web" {
   }
 
   # Outbound rule: allow all outgoing traffic (so the server can download updates, pull images, etc.)
+  # tfsec:ignore:aws-ec2-no-public-egress-sgr
   egress {
+    description = "Allow all outbound for OS updates, image pulls, and AWS API access"
     from_port   = 0
     to_port     = 0
     protocol    = "-1" # -1 = all protocols
@@ -59,6 +61,16 @@ resource "aws_instance" "web" {
   instance_type          = var.instance_type              # t3.micro, from variables.tf
   key_name               = aws_key_pair.deployer.key_name # attach the SSH key
   vpc_security_group_ids = [aws_security_group.web.id]    # attach the firewall rules
+
+  # Force IMDSv2 — blocks SSRF-based credential theft (Capital One-style attacks)
+  metadata_options {
+    http_tokens = "required"
+  }
+
+  # Encrypt the root disk at rest
+  root_block_device {
+    encrypted = true
+  }
 
   tags = {
     Name    = "devops-portfolio" # shows in the EC2 console

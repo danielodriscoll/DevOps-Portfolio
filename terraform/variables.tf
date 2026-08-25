@@ -15,3 +15,8 @@ variable "my_ip" {
   type        = string
   # no default — you'll pass this in, since your IP is specific to you and shouldn't be committed
 }
+
+variable "ssh_public_key" {
+  description = "SSH public key contents for EC2 access"
+  type        = string
+}
