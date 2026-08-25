@@ -60,4 +60,26 @@ jobs:
             -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
             rendered.yaml
 
+  terraform-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3        # official HashiCorp action
+      - name: Check formatting
+        run: terraform fmt -check -recursive       # fails if any .tf file isn't properly formatted
+        working-directory: terraform
+      - name: Validate config
+        run: |
+          terraform init -backend=false            # init without connecting to S3 (no creds needed in CI)
+          terraform validate                        # checks syntax and internal consistency
+        working-directory: terraform
+
+  terraform-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.0      # scans Terraform for security issues
+
   
