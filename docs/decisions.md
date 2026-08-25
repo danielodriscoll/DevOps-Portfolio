@@ -89,3 +89,37 @@ I don't need to do the same for outound traffic as my server will need to fetch 
  Set a $1 budget alert, Free Tier usage alerts and destroyed resources after each session to esnure cost efficency (120 in credits). Wrote main.tf to provision three resources: an SSH key pair (uploading my public key so I can log in), a security group (firewall) locking SSH and HTTP to my own IP for private testing while leaving outbound open so the server can fetch updates and images, and a t3.micro EC2 instance. Hit and fixed a real-world issue, my home broadband IP changes dynamically, so SSH failed until I updated terraform.tfvars and re-applied, which demonstrated Terraform's value: one line changed, one firewall rule updated in place, no resources recreated. Successfully SSH'd into the live server (learning that a cloud instance has both a public IP for internet access and a private IP for AWS-internal networking, and that the first-connection fingerprint prompt is SSH's trust-on-first-use identity check).
 
 Added Terraform validation and security scanning to CI as two separate jobs in ci.yml: terraform-validate runs fmt -check and validate (using init -backend=false so it needs no AWS credentials), and terraform-security runs tfsec to catch misconfigurations like open security groups or unencrypted storage, the IaC equivalent of Trivy scanning Docker images
+
+After pushing new commit, the terraform jobs failed. Firstly due to incorrect foramtting, my public ssh key that get attached to the ec2 is obtained with file() from my local machine, but the ci piplien uses a new ubuntu VM which cant see outside the project folder. Solution woul dbe to add the ssh key as a variable into hidden terraform.tfvars and declare it in my variables.tf and call it in the main.tf. 
+
+TFsec caught 4 security issues with my terraform folder.
+
+Result #1 CRITICAL Security group rule allows egress to multiple public internet addresses. -> Impact Your port is egressing data to the internet
+  Resolution Set a more restrictive cidr range
+
+Result #2 HIGH Instance does not require IMDS access to require a token -> Impact Instance metadata service can be interacted with freely
+  Resolution Enable HTTP token requirement for IMDS
+
+Result #3 HIGH Root block device is not encrypted. -> Impact The block device could be compromised and read from
+  Resolution Turn on encryption for all block devices
+
+Result #4 LOW Security group rule does not have a description. -> Impact Descriptions provide context for the firewall rule reasons
+  Resolution Add descriptions for all security groups rules
+
+My CI pipeline caught 3 high vulnerable issues with the terraform setup.
+
+To address 2 and 3 I used
+  metadata_options {
+    http_tokens = "required"
+  }
+  root_block_device {
+    encrypted = true
+  }
+
+IMDSv2: blocks SSRF attacks from stealing IAM credentials via the instance metadata service
+
+EBS encryption: encrypts the disk at rest so data isn't readable from physical drives or leaked snapshots, and satisfies compliance requirements like GDPR/HIPAA for free with one setting.
+
+1 is actually safe as I've set it up to my local ip only can access, so it's a false positive. Just added # tfsec:ignore:aws-ec2-no-public-egress-sgr comment above egress{} which will ignore the vulnerability, get id aws-ec2-no-public-egress-sgr  from CI pipleine logs
+
+## Phase 5
