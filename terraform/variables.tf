@@ -1,13 +1,13 @@
 variable "region" {
-  description = "AWS region for all resources"   # human-readable note
-  type        = string                           # must be text
-  default     = "eu-west-1"                       # used if not overridden
+  description = "AWS region for all resources" # human-readable note
+  type        = string                         # must be text
+  default     = "eu-west-1"                    # used if not overridden
 }
 
 variable "instance_type" {
   description = "EC2 instance size"
   type        = string
-  default     = "t3.micro"                        # free-tier-eligible / cheap; DON'T change to anything bigger
+  default     = "t3.micro" # free-tier-eligible / cheap; DON'T change to anything bigger
 }
 
 variable "my_ip" {
