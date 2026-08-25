@@ -122,4 +122,6 @@ EBS encryption: encrypts the disk at rest so data isn't readable from physical d
 
 1 is actually safe as I've set it up to my local ip only can access, so it's a false positive. Just added # tfsec:ignore:aws-ec2-no-public-egress-sgr comment above egress{} which will ignore the vulnerability, get id aws-ec2-no-public-egress-sgr  from CI pipleine logs
 
+Note: issue, uploaded new tag which triggers image to be built which contains docker
+
 ## Phase 5
