@@ -15,11 +15,13 @@ A single FastAPI service taken through a real DevOps toolchain, containerised, t
 - **Orchestration** → FastAPI service on a local `kind` cluster, packaged as a Helm chart: a Deployment behind a ClusterIP Service, exposed with the Gateway API (Gateway + HTTPRoute via NGINX Gateway Fabric), with ConfigMap and Secret for configuration, and a HorizontalPodAutoscaler that scales on CPU load
 - **Infrastructure as Code** → real AWS infrastructure provisioned with Terraform: an EC2 instance with SSH locked to my IP, encrypted root disk, IMDSv2 enforced, sitting behind a security group. Remote state stored in an encrypted, versioned S3 bucket with native S3 locking. IAM configured with a least-privilege user, not root
 - **Manifest validation** → `helm lint` and `kubeconform` run in CI for Kubernetes/Helm; `terraform fmt`, `terraform validate`, and `tfsec` run in CI for Terraform, catching config issues and security misconfigurations before merge
+
 **Coming next**
  
 - Ansible to configure the EC2 (install Docker, pull the image, run the container)
 - Observability with Prometheus, Grafana and Loki
 - A final AI-assisted security and best-practice review
+  
 | Phase | Area | Status |
 |---|---|---|
 | 1 | FastAPI app + Docker | ✅ Done |
