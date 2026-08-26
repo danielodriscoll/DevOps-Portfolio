@@ -1,92 +1,171 @@
-<svg width="100%" viewBox="0 0 760 660" role="img" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif">
+<svg width="100%" viewBox="0 0 920 870" role="img" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif">
   <title>DevOps Portfolio architecture</title>
-  <desc>A developer pushes to GitHub, which runs a GitHub Actions CI/CD pipeline (lint, test, build, Trivy scan, push) that publishes a container image to ghcr.io. The image is deployed to a local Kubernetes (kind) cluster, where the Gateway API routes traffic through an HTTPRoute and a ClusterIP Service to a 3-replica FastAPI Deployment. Planned work, shown dashed, covers AWS infrastructure with Terraform and Ansible and observability with Prometheus, Grafana and Loki.</desc>
+  <desc>A developer pushes to GitHub. One GitHub Actions CI/CD pipeline runs quality gates (Ruff, pytest, Helm lint, kubeconform, Terraform validate, tfsec) on every push or PR, and on a version tag builds the image, scans it with Trivy, and pushes it to ghcr.io. That single container image then feeds two independent deployment routes: Route A deploys to a local Kubernetes (kind) cluster via a Helm chart (Gateway API to HTTPRoute to ClusterIP Service to a 3-replica FastAPI Deployment, with ConfigMap, Secret and an HPA); Route B provisions AWS with Terraform (EC2 with IMDSv2 and an encrypted disk, S3 remote state, least-privilege IAM) and configures the host with Ansible to pull and run the image. Observability with Prometheus, Grafana and Loki is planned across both routes.</desc>
 
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M2 1L8 5L2 9" fill="none" stroke="#73726C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M2 1.5L8 5L2 8.5" fill="none" stroke="#8C959F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
     </marker>
   </defs>
 
-  <text x="380" y="26" text-anchor="middle" font-size="17" font-weight="600" fill="#1A1A18">DevOps Portfolio — Architecture</text>
+  <!-- background -->
+  <rect x="0" y="0" width="920" height="870" fill="#F6F8FA"/>
 
-  <!-- Developer -->
-  <rect x="300" y="44" width="160" height="46" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="1"/>
-  <text x="380" y="64" text-anchor="middle" font-size="13" font-weight="600" fill="#44443F">Developer</text>
-  <text x="380" y="80" text-anchor="middle" font-size="11" fill="#5F5E5A">git push</text>
-  <line x1="380" y1="90" x2="380" y2="108" stroke="#73726C" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- ===== Header ===== -->
+  <text x="70" y="45" font-size="23" font-weight="700" fill="#1F2328">DevOps Portfolio — Architecture</text>
+  <text x="70" y="68" font-size="13" fill="#656D76">One FastAPI service · one CI/CD pipeline · two independent deployment routes</text>
 
-  <!-- CI/CD -->
-  <rect x="60" y="110" width="640" height="124" rx="12" fill="#EEEDFE" stroke="#534AB7" stroke-width="1"/>
-  <text x="80" y="132" font-size="13" font-weight="600" fill="#3C3489">GitHub Actions — CI/CD&#160;&#160;·&#160;&#160;✅ built</text>
+  <!-- legend -->
+  <rect x="556" y="34" width="13" height="13" rx="2" fill="#57606A"/>
+  <text x="575" y="45" font-size="11.5" fill="#656D76">Built</text>
+  <rect x="626" y="34" width="13" height="13" rx="2" fill="none" stroke="#D4A72C" stroke-width="1.5" stroke-dasharray="3 2"/>
+  <text x="645" y="45" font-size="11.5" fill="#656D76">In&#160;progress</text>
+  <rect x="734" y="34" width="13" height="13" rx="2" fill="none" stroke="#AFB8C1" stroke-width="1.5" stroke-dasharray="3 2"/>
+  <text x="753" y="45" font-size="11.5" fill="#656D76">Planned</text>
 
-  <rect x="80" y="148" width="104" height="44" rx="6" fill="#FFFFFF" stroke="#534AB7" stroke-width="1"/>
-  <text x="132" y="174" text-anchor="middle" font-size="13" font-weight="500" fill="#3C3489">Lint</text>
-  <line x1="184" y1="170" x2="200" y2="170" stroke="#73726C" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- ===== Developer ===== -->
+  <rect x="360" y="96" width="200" height="52" rx="8" fill="#FFFFFF" stroke="#D0D7DE" stroke-width="1.2"/>
+  <text x="460" y="120" text-anchor="middle" font-size="14" font-weight="600" fill="#1F2328">Developer</text>
+  <text x="460" y="138" text-anchor="middle" font-size="11" fill="#656D76">git push · git tag v*</text>
+  <line x1="460" y1="148" x2="460" y2="170" stroke="#8C959F" stroke-width="1.6" marker-end="url(#arrow)"/>
 
-  <rect x="200" y="148" width="104" height="44" rx="6" fill="#FFFFFF" stroke="#534AB7" stroke-width="1"/>
-  <text x="252" y="174" text-anchor="middle" font-size="13" font-weight="500" fill="#3C3489">Test</text>
-  <line x1="304" y1="170" x2="320" y2="170" stroke="#73726C" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- ===== CI/CD ===== -->
+  <rect x="70" y="172" width="780" height="200" rx="10" fill="#F0F6FF" stroke="#1F6FEB" stroke-width="1.2"/>
+  <rect x="86" y="187" width="12" height="12" rx="2" fill="#1F6FEB"/>
+  <text x="104" y="197" font-size="14" font-weight="700" fill="#0A5CD8">GitHub Actions — CI/CD pipeline</text>
+  <text x="834" y="197" text-anchor="end" font-size="11" font-weight="600" fill="#57606A">Built</text>
 
-  <rect x="320" y="148" width="104" height="44" rx="6" fill="#FFFFFF" stroke="#534AB7" stroke-width="1"/>
-  <text x="372" y="174" text-anchor="middle" font-size="13" font-weight="500" fill="#3C3489">Build</text>
-  <line x1="424" y1="170" x2="440" y2="170" stroke="#73726C" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="86" y="217" font-size="11" font-weight="600" fill="#0A5CD8">On every push / PR — quality gates</text>
 
-  <rect x="440" y="148" width="104" height="44" rx="6" fill="#FFFFFF" stroke="#534AB7" stroke-width="1"/>
-  <text x="492" y="174" text-anchor="middle" font-size="13" font-weight="500" fill="#3C3489">Scan</text>
-  <line x1="544" y1="170" x2="560" y2="170" stroke="#73726C" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- row 1: quality gates -->
+  <g font-size="9.5">
+    <rect x="92"  y="224" width="110" height="40" rx="6" fill="#FFFFFF" stroke="#C6D9F7" stroke-width="1"/>
+    <text x="147" y="242" text-anchor="middle" font-size="12" font-weight="600" fill="#1F2328">Ruff</text>
+    <text x="147" y="256" text-anchor="middle" fill="#656D76">lint + format</text>
 
-  <rect x="560" y="148" width="104" height="44" rx="6" fill="#FFFFFF" stroke="#534AB7" stroke-width="1"/>
-  <text x="612" y="174" text-anchor="middle" font-size="13" font-weight="500" fill="#3C3489">Push</text>
+    <rect x="217" y="224" width="110" height="40" rx="6" fill="#FFFFFF" stroke="#C6D9F7" stroke-width="1"/>
+    <text x="272" y="242" text-anchor="middle" font-size="12" font-weight="600" fill="#1F2328">pytest</text>
+    <text x="272" y="256" text-anchor="middle" fill="#656D76">unit tests</text>
 
-  <text x="80" y="220" font-size="11" fill="#534AB7">Lint + Test on push / PR&#160;&#160;·&#160;&#160;Build + Trivy scan + Push on tag v*</text>
+    <rect x="342" y="224" width="110" height="40" rx="6" fill="#FFFFFF" stroke="#C6D9F7" stroke-width="1"/>
+    <text x="397" y="242" text-anchor="middle" font-size="12" font-weight="600" fill="#1F2328">Helm</text>
+    <text x="397" y="256" text-anchor="middle" fill="#656D76">chart lint</text>
 
-  <line x1="380" y1="234" x2="380" y2="254" stroke="#73726C" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <rect x="467" y="224" width="110" height="40" rx="6" fill="#FFFFFF" stroke="#C6D9F7" stroke-width="1"/>
+    <text x="522" y="242" text-anchor="middle" font-size="12" font-weight="600" fill="#1F2328">kubeconform</text>
+    <text x="522" y="256" text-anchor="middle" fill="#656D76">manifest validate</text>
 
-  <!-- Registry -->
-  <rect x="300" y="256" width="160" height="46" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1"/>
-  <text x="380" y="276" text-anchor="middle" font-size="13" font-weight="600" fill="#085041">ghcr.io</text>
-  <text x="380" y="292" text-anchor="middle" font-size="11" fill="#0F6E56">Container registry</text>
+    <rect x="592" y="224" width="110" height="40" rx="6" fill="#FFFFFF" stroke="#C6D9F7" stroke-width="1"/>
+    <text x="647" y="242" text-anchor="middle" font-size="12" font-weight="600" fill="#1F2328">Terraform</text>
+    <text x="647" y="256" text-anchor="middle" fill="#656D76">fmt + validate</text>
 
-  <line x1="380" y1="302" x2="380" y2="322" stroke="#73726C" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <rect x="717" y="224" width="110" height="40" rx="6" fill="#FFFFFF" stroke="#C6D9F7" stroke-width="1"/>
+    <text x="772" y="242" text-anchor="middle" font-size="12" font-weight="600" fill="#1F2328">tfsec</text>
+    <text x="772" y="256" text-anchor="middle" fill="#656D76">IaC scan</text>
+  </g>
 
-  <!-- Kubernetes -->
-  <rect x="60" y="324" width="640" height="172" rx="12" fill="#FAECE7" stroke="#993C1D" stroke-width="1"/>
-  <text x="80" y="346" font-size="13" font-weight="600" fill="#712B13">Kubernetes cluster — kind (local)&#160;&#160;·&#160;&#160;🚧 in progress</text>
-  <text x="80" y="364" font-size="11" fill="#993C1D">Gateway API routing → Service → Deployment</text>
+  <line x1="86" y1="286" x2="834" y2="286" stroke="#D6E3F8" stroke-width="1"/>
+  <text x="86" y="305" font-size="11" font-weight="600" fill="#0A5CD8">On tag v* — release</text>
 
-  <rect x="80" y="380" width="120" height="56" rx="6" fill="#FFFFFF" stroke="#993C1D" stroke-width="1"/>
-  <text x="140" y="403" text-anchor="middle" font-size="13" font-weight="500" fill="#712B13">Gateway</text>
-  <text x="140" y="420" text-anchor="middle" font-size="11" fill="#993C1D">HTTP :80</text>
-  <line x1="200" y1="408" x2="226" y2="408" stroke="#73726C" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- row 2: release -->
+  <rect x="120" y="311" width="180" height="40" rx="6" fill="#FFFFFF" stroke="#C6D9F7" stroke-width="1"/>
+  <text x="210" y="336" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1F2328">Build image</text>
+  <line x1="300" y1="331" x2="356" y2="331" stroke="#8C959F" stroke-width="1.6" marker-end="url(#arrow)"/>
 
-  <rect x="226" y="380" width="120" height="56" rx="6" fill="#FFFFFF" stroke="#993C1D" stroke-width="1"/>
-  <text x="286" y="403" text-anchor="middle" font-size="13" font-weight="500" fill="#712B13">HTTPRoute</text>
-  <text x="286" y="420" text-anchor="middle" font-size="11" fill="#993C1D">path /</text>
-  <line x1="346" y1="408" x2="372" y2="408" stroke="#73726C" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="360" y="311" width="180" height="40" rx="6" fill="#FFFFFF" stroke="#C6D9F7" stroke-width="1"/>
+  <text x="450" y="332" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1F2328">Trivy scan</text>
+  <text x="450" y="345" text-anchor="middle" font-size="9" fill="#656D76">CRITICAL / HIGH block push</text>
+  <line x1="540" y1="331" x2="596" y2="331" stroke="#8C959F" stroke-width="1.6" marker-end="url(#arrow)"/>
 
-  <rect x="372" y="380" width="120" height="56" rx="6" fill="#FFFFFF" stroke="#993C1D" stroke-width="1"/>
-  <text x="432" y="403" text-anchor="middle" font-size="13" font-weight="500" fill="#712B13">Service</text>
-  <text x="432" y="420" text-anchor="middle" font-size="11" fill="#993C1D">ClusterIP :80</text>
-  <line x1="492" y1="408" x2="518" y2="408" stroke="#73726C" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="600" y="311" width="180" height="40" rx="6" fill="#FFFFFF" stroke="#C6D9F7" stroke-width="1"/>
+  <text x="690" y="336" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1F2328">Push → ghcr.io</text>
 
-  <rect x="518" y="380" width="146" height="56" rx="6" fill="#FFFFFF" stroke="#993C1D" stroke-width="1"/>
-  <text x="591" y="403" text-anchor="middle" font-size="13" font-weight="500" fill="#712B13">Deployment</text>
-  <text x="591" y="420" text-anchor="middle" font-size="11" fill="#993C1D">3× FastAPI pods</text>
+  <text x="86" y="365" font-size="10" fill="#57606A">Quality gates block merge to main · the image is built and pushed only on a version tag</text>
 
-  <text x="80" y="466" font-size="11" fill="#993C1D">ConfigMap + Secret → pod env&#160;&#160;·&#160;&#160;3 replicas for rolling updates &amp; failover</text>
+  <line x1="460" y1="372" x2="460" y2="386" stroke="#8C959F" stroke-width="1.6" marker-end="url(#arrow)"/>
 
-  <line x1="380" y1="496" x2="380" y2="516" stroke="#73726C" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+  <!-- ===== Registry ===== -->
+  <rect x="330" y="388" width="260" height="58" rx="8" fill="#FBF7FF" stroke="#8250DF" stroke-width="1.2"/>
+  <rect x="346" y="404" width="12" height="12" rx="2" fill="#8250DF"/>
+  <text x="364" y="414" font-size="15" font-weight="700" fill="#6E40C9">ghcr.io</text>
+  <text x="460" y="437" text-anchor="middle" font-size="10.5" fill="#656D76">GitHub Container Registry · image  :vX  +  :latest</text>
 
-  <!-- Planned -->
-  <rect x="60" y="518" width="640" height="112" rx="12" fill="#F4F3EF" stroke="#8A8782" stroke-width="1" stroke-dasharray="6 4"/>
-  <text x="80" y="540" font-size="13" font-weight="600" fill="#5F5E5A">Planned&#160;&#160;·&#160;&#160;📋 not started</text>
+  <!-- fork -->
+  <text x="460" y="470" text-anchor="middle" font-size="11" font-style="italic" fill="#57606A">The same image feeds two independent deployment routes</text>
+  <path d="M405 446 L405 462 Q405 470 396 474 L268 488" fill="none" stroke="#8C959F" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <path d="M515 446 L515 462 Q515 470 524 474 L652 488" fill="none" stroke="#8C959F" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="300" y="485" text-anchor="middle" font-size="9.5" fill="#57606A">pulls image</text>
+  <text x="620" y="485" text-anchor="middle" font-size="9.5" fill="#57606A">pulls image</text>
 
-  <rect x="80" y="554" width="290" height="58" rx="6" fill="#FFFFFF" stroke="#8A8782" stroke-width="1" stroke-dasharray="6 4"/>
-  <text x="225" y="578" text-anchor="middle" font-size="13" font-weight="500" fill="#44443F">AWS — EC2 + S3 remote state</text>
-  <text x="225" y="595" text-anchor="middle" font-size="11" fill="#5F5E5A">Terraform provisions · Ansible configures</text>
+  <!-- ===== Route A: Kubernetes ===== -->
+  <rect x="70" y="492" width="360" height="248" rx="10" fill="#F0F5FF" stroke="#326CE5" stroke-width="1.2"/>
+  <rect x="86" y="507" width="12" height="12" rx="2" fill="#326CE5"/>
+  <text x="104" y="517" font-size="13.5" font-weight="700" fill="#2557C7">Route A · Kubernetes (kind, local)</text>
+  <text x="414" y="517" text-anchor="end" font-size="10.5" font-weight="600" fill="#57606A">Built</text>
+  <text x="104" y="533" font-size="10" fill="#3B6BD4">Deployed with a Helm chart · Gateway API routing</text>
 
-  <rect x="390" y="554" width="290" height="58" rx="6" fill="#FFFFFF" stroke="#8A8782" stroke-width="1" stroke-dasharray="6 4"/>
-  <text x="535" y="578" text-anchor="middle" font-size="13" font-weight="500" fill="#44443F">Observability</text>
-  <text x="535" y="595" text-anchor="middle" font-size="11" fill="#5F5E5A">Prometheus · Grafana · Loki</text>
+  <rect x="100" y="542" width="300" height="34" rx="6" fill="#FFFFFF" stroke="#BFD2F5" stroke-width="1"/>
+  <text x="250" y="556" text-anchor="middle" font-size="12" font-weight="600" fill="#1F2328">Gateway</text>
+  <text x="250" y="569" text-anchor="middle" font-size="9.5" fill="#656D76">NGINX Gateway Fabric · HTTP :80</text>
+  <line x1="250" y1="576" x2="250" y2="588" stroke="#8C959F" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <rect x="100" y="590" width="300" height="34" rx="6" fill="#FFFFFF" stroke="#BFD2F5" stroke-width="1"/>
+  <text x="250" y="604" text-anchor="middle" font-size="12" font-weight="600" fill="#1F2328">HTTPRoute</text>
+  <text x="250" y="617" text-anchor="middle" font-size="9.5" fill="#656D76">path /</text>
+  <line x1="250" y1="624" x2="250" y2="636" stroke="#8C959F" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <rect x="100" y="638" width="300" height="34" rx="6" fill="#FFFFFF" stroke="#BFD2F5" stroke-width="1"/>
+  <text x="250" y="652" text-anchor="middle" font-size="12" font-weight="600" fill="#1F2328">Service</text>
+  <text x="250" y="665" text-anchor="middle" font-size="9.5" fill="#656D76">ClusterIP :80</text>
+  <line x1="250" y1="672" x2="250" y2="684" stroke="#8C959F" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <rect x="100" y="686" width="300" height="34" rx="6" fill="#FFFFFF" stroke="#326CE5" stroke-width="1.4"/>
+  <text x="250" y="700" text-anchor="middle" font-size="12" font-weight="600" fill="#1F2328">Deployment — 3× FastAPI pods</text>
+  <text x="250" y="713" text-anchor="middle" font-size="9.5" fill="#656D76">HPA scales 2–4 @ 70% CPU · ConfigMap + Secret → env</text>
+
+  <!-- ===== Route B: AWS ===== -->
+  <rect x="490" y="492" width="360" height="248" rx="10" fill="#FFF8EF" stroke="#E8890C" stroke-width="1.2"/>
+  <rect x="506" y="507" width="12" height="12" rx="2" fill="#E8890C"/>
+  <text x="524" y="517" font-size="13.5" font-weight="700" fill="#B45309">Route B · AWS (Terraform, cloud)</text>
+  <text x="834" y="517" text-anchor="end" font-size="10.5" font-weight="600" fill="#57606A">Built</text>
+  <text x="524" y="533" font-size="10" fill="#B4690E">Provisioned as code · configured by Ansible</text>
+
+  <rect x="520" y="542" width="300" height="34" rx="6" fill="#FFFFFF" stroke="#F3D2A6" stroke-width="1"/>
+  <text x="670" y="556" text-anchor="middle" font-size="12" font-weight="600" fill="#1F2328">Terraform apply</text>
+  <text x="670" y="569" text-anchor="middle" font-size="9.5" fill="#656D76">provisions infrastructure</text>
+  <line x1="670" y1="576" x2="670" y2="588" stroke="#8C959F" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <rect x="520" y="590" width="300" height="34" rx="6" fill="#FFFFFF" stroke="#E8890C" stroke-width="1.4"/>
+  <text x="670" y="604" text-anchor="middle" font-size="12" font-weight="600" fill="#1F2328">EC2 · t3.micro</text>
+  <text x="670" y="617" text-anchor="middle" font-size="9.5" fill="#656D76">IMDSv2 · encrypted EBS · SG locked to my IP</text>
+  <line x1="670" y1="624" x2="670" y2="636" stroke="#8C959F" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <rect x="520" y="638" width="300" height="34" rx="6" fill="#FFFDF7" stroke="#D4A72C" stroke-width="1.3" stroke-dasharray="5 3"/>
+  <text x="670" y="652" text-anchor="middle" font-size="12" font-weight="600" fill="#8A6D1B">Ansible configures host</text>
+  <text x="670" y="665" text-anchor="middle" font-size="9.5" fill="#9A7B24">install Docker · pull image · run container</text>
+  <line x1="670" y1="672" x2="670" y2="684" stroke="#8C959F" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
+
+  <rect x="520" y="686" width="300" height="34" rx="6" fill="#FFFDF7" stroke="#D4A72C" stroke-width="1.3" stroke-dasharray="5 3"/>
+  <text x="670" y="700" text-anchor="middle" font-size="12" font-weight="600" fill="#8A6D1B">Container running on EC2</text>
+  <text x="670" y="713" text-anchor="middle" font-size="9.5" fill="#9A7B24">State in S3 (encrypted·versioned·locked) · IAM least-privilege</text>
+
+  <!-- ===== Observability (planned) ===== -->
+  <line x1="250" y1="740" x2="250" y2="760" stroke="#AFB8C1" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
+  <line x1="670" y1="740" x2="670" y2="760" stroke="#AFB8C1" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
+
+  <rect x="70" y="762" width="780" height="90" rx="10" fill="#F6F8FA" stroke="#AFB8C1" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <rect x="86" y="777" width="12" height="12" rx="2" fill="none" stroke="#AFB8C1" stroke-width="1.5" stroke-dasharray="3 2"/>
+  <text x="104" y="787" font-size="13.5" font-weight="700" fill="#656D76">Observability</text>
+  <text x="834" y="787" text-anchor="end" font-size="10.5" font-weight="600" fill="#8C959F">Planned</text>
+
+  <rect x="95"  y="798" width="230" height="34" rx="6" fill="#FFFFFF" stroke="#C9D1D9" stroke-width="1" stroke-dasharray="5 3"/>
+  <text x="210" y="819" text-anchor="middle" font-size="12" font-weight="600" fill="#57606A">Prometheus</text>
+
+  <rect x="345" y="798" width="230" height="34" rx="6" fill="#FFFFFF" stroke="#C9D1D9" stroke-width="1" stroke-dasharray="5 3"/>
+  <text x="460" y="819" text-anchor="middle" font-size="12" font-weight="600" fill="#57606A">Grafana</text>
+
+  <rect x="595" y="798" width="230" height="34" rx="6" fill="#FFFFFF" stroke="#C9D1D9" stroke-width="1" stroke-dasharray="5 3"/>
+  <text x="710" y="819" text-anchor="middle" font-size="12" font-weight="600" fill="#57606A">Loki</text>
+
+  <text x="460" y="847" text-anchor="middle" font-size="9.5" fill="#8C959F">Scrapes the /metrics endpoint and ships container logs from both routes</text>
 </svg>
