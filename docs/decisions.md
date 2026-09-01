@@ -125,3 +125,27 @@ EBS encryption: encrypts the disk at rest so data isn't readable from physical d
 Note: issue, uploaded new tag which triggers image to be built which contains docker
 
 ## Phase 5
+So Terraform handles deploying the infrastructure. Whereas Ansible what is is insatlled and configured on a deployed machine e.g. package files, running services etc.
+
+We could do configuration using a shell script on boot with Terraform, the issue is it's not idempotent and will cause issues if changes are made ( will have to start up a new instance and sh script.) Whereas Ansible will check current config and only change what needs to be changed.
+
+With configuring secrets and passwords between ansible, my image repo etc I opted to go with AWS secret manager as it's as easy as adding another resource to Terraform during provisioning. Also it's kept on the cloud which is safer and more accessible for teams as opposed to locally. Downside, it costs 40cent a month per secret.
+
+I noticed my old ghcr token expired which is good, so I made a new one for the aws-ec2 to pull my image, set th etoken to packages:read only so I follow least privilege access. To tighten my security in this ci/cd flow I changes my devops-portfolio package to privat erathe rthan public, forcing the authentication requirement that were going to apply through aws secrets.
+
+I made an IAM user terraform-user so I could use Terraform from the AWS CLI locally, each time I ran Terraform commands they interacted with AWS's API, authenticated with that user's credentials (set up locally via aws configure). That's the *human/tool* identity for building infrastructure from my laptop.
+
+Now for the deployment side, the EC2 itself needs to call AWS APIs at runtime (to fetch the ghcr token from Secrets Manager), without a human involved, and without credentials sitting on the server. That's a *machine* identity, which is what an IAM role attached to the EC2 provides: temporary credentials delivered via the instance metadata service, scoped tightly to just reading one specific secret. Ansible is the tool triggering the fetch, but the identity making the AWS call is the EC2 itself.
+
+Two identities at two different times: terraform-user (my laptop, creating infrastructure) and ec2_role (the running server, accessing runtime resources), this is another example of least privilege.
+
+From my understanding AWS IAM User is for long term credentials and logins by users and apps, roles are short term permissions with specific access (usually aws services), policies are the restrictions on what users/roles can access in JSON format.
+
+Note when adding a role to EC2 it require a wrapper, in this case we have an IAM instance that gets attached to ec2 as an object. Attaching instance require delete and recreate of EC2 (be careful in future, its ok fo rmy project because I destroy anyway)
+
+Ran into permission error, the user policies attached to my local laptop under terraform-user do not have necessary permissions: 
+terraform-user is not authorized to perform: iam:CreateRole on resource:
+/terraform-user is not authorized to perform: secretsmanager:CreateSecret
+This is a good example of least privilege access working corrcetly, stopped my terraform-user from perfoming these actions, must update it's policies.
+
+uploaded my ghcr token from aws cli once (only tim eit was in plain view ) to aws secret manager, where EC2 can read it.
