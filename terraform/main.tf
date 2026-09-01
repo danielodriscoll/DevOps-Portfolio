@@ -61,7 +61,7 @@ resource "aws_instance" "web" {
   instance_type          = var.instance_type
   key_name               = aws_key_pair.deployer.key_name
   vpc_security_group_ids = [aws_security_group.web.id]
-  iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name   # NEW LINE — attaches the role
+  iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name # NEW LINE — attaches the role
 
   metadata_options {
     http_tokens = "required"
@@ -78,62 +78,62 @@ resource "aws_instance" "web" {
 }
 
 # IAM role: the "identity" the EC2 assumes when it runs
-  resource "aws_iam_role" "ec2_role" {
-    name = "devops-portfolio-ec2-role"
+resource "aws_iam_role" "ec2_role" {
+  name = "devops-portfolio-ec2-role"
 
-    # Trust policy: which AWS service is allowed to assume this role
-    # In this case, only the EC2 service can, meaning only an EC2 instance can act as this role
-    assume_role_policy = jsonencode({
-      Version = "2012-10-17"
-      Statement = [{
-        Effect = "Allow"
-        Principal = {
-          Service = "ec2.amazonaws.com"
-        }
-        Action = "sts:AssumeRole"
-      }]
-    })
+  # Trust policy: which AWS service is allowed to assume this role
+  # In this case, only the EC2 service can, meaning only an EC2 instance can act as this role
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
 
-    tags = {
-      Project = "devops-portfolio"
-    }
+  tags = {
+    Project = "devops-portfolio"
   }
+}
 
 # IAM policy: what this role is *allowed to do*
 # Least privilege: only read the one specific secret, nothing else in AWS
 resource "aws_iam_role_policy" "read_ghcr_secret" {
-name = "read-ghcr-secret"
-role = aws_iam_role.ec2_role.id
+  name = "read-ghcr-secret"
+  role = aws_iam_role.ec2_role.id
 
-policy = jsonencode({
-  Version = "2012-10-17"
-  Statement = [{
-    Effect = "Allow"
-    Action = [
-      "secretsmanager:GetSecretValue"    # read a secret's value
-    ]
-    Resource = aws_secretsmanager_secret.ghcr_token.arn   # ONLY this specific secret
-  }]
-})
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "secretsmanager:GetSecretValue" # read a secret's value
+      ]
+      Resource = aws_secretsmanager_secret.ghcr_token.arn # ONLY this specific secret
+    }]
+  })
 }
 
 # Instance profile: the "carrier" that attaches an IAM role to an EC2 instance
 # EC2 needs this wrapper — you can't attach an IAM role directly, you attach the profile
 resource "aws_iam_instance_profile" "ec2_profile" {
-name = "devops-portfolio-ec2-profile"
-role = aws_iam_role.ec2_role.name
+  name = "devops-portfolio-ec2-profile"
+  role = aws_iam_role.ec2_role.name
 }
 
 # The secret container itself — just an empty "slot" with a name
 # The actual token value is put in separately via AWS CLI (never in Terraform)
 resource "aws_secretsmanager_secret" "ghcr_token" {
-  name        = "devops-portfolio/ghcr-token"    # / creates a namespace-style path
+  name        = "devops-portfolio/ghcr-token" # / creates a namespace-style path
   description = "GitHub Container Registry pull token for the EC2 to authenticate with ghcr.io"
 
   # Free-tier friendly: no automatic rotation, no KMS custom key
-  recovery_window_in_days = 0    # delete immediately on destroy (default is 30-day recovery window)
-                                  # Set to 0 for a learning project so terraform destroy actually deletes
-                                  # In production you'd leave this longer to protect against accidents
+  recovery_window_in_days = 0 # delete immediately on destroy (default is 30-day recovery window)
+  # Set to 0 for a learning project so terraform destroy actually deletes
+  # In production you'd leave this longer to protect against accidents
 
   tags = {
     Project = "devops-portfolio"
