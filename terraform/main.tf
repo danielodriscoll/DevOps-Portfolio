@@ -126,6 +126,7 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 
 # The secret container itself — just an empty "slot" with a name
 # The actual token value is put in separately via AWS CLI (never in Terraform)
+#tfsec:ignore:aws-ssm-secret-use-customer-key
 resource "aws_secretsmanager_secret" "ghcr_token" {
   name        = "devops-portfolio/ghcr-token" # / creates a namespace-style path
   description = "GitHub Container Registry pull token for the EC2 to authenticate with ghcr.io"

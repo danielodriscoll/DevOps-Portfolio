@@ -18,4 +18,4 @@ COPY . /code/myapp
 # Remove pip and setuptools — not needed at runtime, and their vendored copies trip Trivy
 RUN pip uninstall -y pip setuptools 2>/dev/null || true
 
-CMD ["fastapi", "run", "myapp/main.py", "--port", "80"]
+CMD ["python", "-m", "uvicorn", "myapp.main:app", "--host", "0.0.0.0", "--port", "80"]

@@ -1,0 +1,20 @@
+# Tells Ansible: "your inventory is generated dynamically from AWS, not from a static list"
+plugin: amazon.aws.aws_ec2
+
+# Which region(s) to search — matches your Terraform region
+regions:
+  - eu-west-1
+
+# Only include running instances (not terminated/stopped ones)
+filters:
+  instance-state-name: running
+  tag:Project: devops-portfolio    # only your project's EC2s, matched by the tag Terraform sets
+
+# How to name each host in the inventory — use the instance's public DNS
+hostnames:
+  - dns-name
+
+# What variables each host should have available for the playbook
+compose:
+  # Tells Ansible how to reach the host — via its public IP
+  ansible_host: public_ip_address
