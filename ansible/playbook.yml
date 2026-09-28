@@ -1,0 +1,64 @@
+---
+- name: Deploy the FastAPI app to the EC2
+  hosts: all
+  gather_facts: true              # enable now — some Docker tasks branch on OS family
+  become: true                    # sudo — installing Docker needs root
+
+  vars:
+    image: "ghcr.io/danielodriscoll/devops-portfolio:latest"
+    container_name: "fastapi-app"
+    aws_region: "eu-west-1"
+    secret_name: "devops-portfolio/ghcr-token"
+
+  tasks:
+    - name: Install Docker
+      ansible.builtin.dnf:         # dnf is Amazon Linux 2023's package manager (yum's replacement)
+        name: docker
+        state: present             # "make sure this is installed" — idempotent, does nothing if already there
+
+    - name: Start and enable Docker service
+      ansible.builtin.systemd:
+        name: docker
+        state: started             # make sure it's running now
+        enabled: true              # make sure it starts on reboot
+
+    - name: Install pip (needed for the Docker Python SDK)
+      ansible.builtin.dnf:
+        name: python3-pip
+        state: present
+
+    - name: Install Docker Python SDK (needed by Ansible's docker modules)
+      ansible.builtin.pip:
+        name: docker
+        extra_args: --ignore-installed requests
+
+    - name: Log in to ghcr.io
+      community.docker.docker_login:
+        registry_url: ghcr.io
+        username: danielodriscoll
+        password: "{{ lookup('amazon.aws.aws_secret', secret_name, region=aws_region) }}"
+      no_log: true
+
+    - name: Pull the app image
+      community.docker.docker_image:
+        name: "{{ image }}"
+        source: pull               # tells it to pull fresh, not use a local build
+        force_source: true         # always fetch the current :latest, not a cached version
+
+    - name: Run the container
+      community.docker.docker_container:
+        name: "{{ container_name }}"
+        image: "{{ image }}"
+        state: started             # ensure the container is running
+        restart_policy: unless-stopped   # auto-restart if it crashes or the host reboots
+        published_ports:
+          - "80:80"                # map host port 80 → container port 80
+
+    - name: Confirm the app responds
+      ansible.builtin.uri:
+        url: http://localhost/health
+        return_content: true
+      register: healthcheck
+      retries: 5                   # give the container a few seconds to boot
+      delay: 3
+      until: healthcheck.status == 200

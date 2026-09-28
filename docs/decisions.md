@@ -14,6 +14,8 @@ Trivy vulnerability check is good practice to see what need to be addressed in m
 
 I changed th epipleine to avoid rebuilding docker image unecessarily as it only ocntains myapp content, skipp docker stpes if myapp folder is unchanged. More eefiecent piplein ethat way. I can update other parts of the project without executing the full pipeline.
 
+Set Permissions at the start of docker build job as the default is read and write to the repo, I want to follow least privilege access, therefore set teh GITHUB token generated automaticlaly by the workflow to only be allowed read the repo and only allowed write to GHCR
+
 Note: technically building the image twice, once before the scan then once after -> need to make more efficent
 
 ## Phase 3:
@@ -125,3 +127,45 @@ EBS encryption: encrypts the disk at rest so data isn't readable from physical d
 Note: issue, uploaded new tag which triggers image to be built which contains docker
 
 ## Phase 5
+So Terraform handles deploying the infrastructure. Whereas Ansible what is is insatlled and configured on a deployed machine e.g. package files, running services etc.
+
+We could do configuration using a shell script on boot with Terraform, the issue is it's not idempotent and will cause issues if changes are made ( will have to start up a new instance and sh script.) Whereas Ansible will check current config and only change what needs to be changed.
+
+With configuring secrets and passwords between ansible, my image repo etc I opted to go with AWS secret manager as it's as easy as adding another resource to Terraform during provisioning. Also it's kept on the cloud which is safer and more accessible for teams as opposed to locally. Downside, it costs 40cent a month per secret.
+
+I noticed my old ghcr token expired which is good, so I made a new one for the aws-ec2 to pull my image, set th etoken to packages:read only so I follow least privilege access. To tighten my security in this ci/cd flow I changes my devops-portfolio package to privat erathe rthan public, forcing the authentication requirement that were going to apply through aws secrets.
+
+I made an IAM user terraform-user so I could use Terraform from the AWS CLI locally, each time I ran Terraform commands they interacted with AWS's API, authenticated with that user's credentials (set up locally via aws configure). That's the *human/tool* identity for building infrastructure from my laptop.
+
+Now for the deployment side, the EC2 itself needs to call AWS APIs at runtime (to fetch the ghcr token from Secrets Manager), without a human involved, and without credentials sitting on the server. That's a *machine* identity, which is what an IAM role attached to the EC2 provides: temporary credentials delivered via the instance metadata service, scoped tightly to just reading one specific secret. Ansible is the tool triggering the fetch, but the identity making the AWS call is the EC2 itself.
+
+Two identities at two different times: terraform-user (my laptop, creating infrastructure) and ec2_role (the running server, accessing runtime resources), this is another example of least privilege.
+
+From my understanding AWS IAM User is for long term credentials and logins by users and apps, roles are short term permissions with specific access (usually aws services), policies are the restrictions on what users/roles can access in JSON format.
+
+Note when adding a role to EC2 it require a wrapper, in this case we have an IAM instance that gets attached to ec2 as an object. Attaching instance require delete and recreate of EC2 (be careful in future, its ok fo rmy project because I destroy anyway)
+
+Ran into permission error, the user policies attached to my local laptop under terraform-user do not have necessary permissions: 
+terraform-user is not authorized to perform: iam:CreateRole on resource:
+/terraform-user is not authorized to perform: secretsmanager:CreateSecret
+This is a good example of least privilege access working corrcetly, stopped my terraform-user from perfoming these actions, must update it's policies.
+
+uploaded my ghcr token from aws cli once (only tim eit was in plain view ) to aws secret manager, where EC2 can read it.
+
+Big error I made, git add and commit from within my ansible folder only pushed changes in that folder, not th entire devops-portfolio, so terraform and decision changes didnt upload. add . is currnet repo, git -A is entire repo. I used git restore which removed my progress. I got my work back using vscode command palatte - local history find entity and restore.
+
+TFsec flagged a low security issue of me using the deafult aws-managed KMS key for secrets manager. To us emy own key it costs money which would go against the free tier I'm on. In production I owuld update this key and it's policies. But for this free tier portfolio, i'll use the default, risk is low because it's encrypted at rest anyway.
+
+Running ansible-inventory --list was failing due to a default secuirty feature where this command will only allow and read an ansible directory that is not writable to everyone which mine was not so it failed. Fixed it with Chmod 755 on that directory, allowing only the owner full permissions and not the groups or others. This avoids malicios edits to .cfg file that Ansible could run. Good practice also on Linux to follow least privilege access rule so that if an attacker get access to a service the blast radius of what they can do is minimised.
+
+My ISP keeps changing my ip throughout development, most be a secuirty feature, so it keeps breaking the ip in TFvars file.
+
+This phase seems to be a real test to see if I like solving issue around connecting these tools. This ANsible phase has proven tricky so far. Ansible playbook failed on trying to install requests module as rpm from the linux image being used already contained it. It then broke authenticating to GHCR due to an expired token. This was the security detup of 30 days for a token that I setup in earlier phases working correctly. 
+
+Ansible lookup plugins run on the controller (my laptop), not the host (the EC2). So the aws secret fetch uses my laptop's terraform-user credentials, not the EC2's IAM role (ec2-user). If I wanted the fetch to run on the EC2 using its role, I'd use the module form (a task) instead of a lookup. For this project the lookup is fine because my laptop has AWS credentials anyway but I note that if this were CI-driven deployment with no local AWS creds, the module form running on the EC2 (with its role) would be the right pattern
+
+Made a silly mmistake, adjusted the Dockerfile to be multistage build to fix the setuptools error, howeveer I forgot to buil dthe images an dtets th econtaienr myself, turns out theres an issues that I spotted now when pulling that image with Ansible and trying to run it. The issue is the fastapi executable in the bin folder is not getting copied across to the second datge of the build so error running the script using:
+
+CMD ["fastapi", "run", "myapp/main.py", "--port", "80"]
+
+So fastapi is the middleman which uses uvicorn under the hood, uvicorn is also in bin folder but also site-packages folder which does get copied across so will work

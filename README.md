@@ -6,14 +6,14 @@ I plan to have a small fastapi app deployed end-to-end through a modern DevOps t
 
 ## What this project demonstrates
 
-A single FastAPI service taken through a real DevOps toolchain, containerised, tested and scanned in CI, then deployed to Kubernetes. Built from scratch, one phase at a time.
+A single FastAPI service taken through a real DevOps toolchain, containerised, tested and scanned in CI, then deployed to Kubernetes or AWS's EC2 vua Ansible and Terraform. Observed and monitored after completion using Prometheus, Grafana and Loki. Built from scratch, one phase at a time.
 
 **Built so far**
  
 - **Containerisation** → FastAPI app packaged with Docker using a multi-stage build on a slim Python base, with a `.dockerignore` to keep the image small and free of local/secret files
-- **CI/CD** → GitHub Actions: lint and test on every push and PR, plus a release pipeline that builds, Trivy-scans, then pushes the image to GHCR on version tags
+- **CI/CD** → GitHub Actions: lint and test on every push and PR to main, plus a release pipeline that builds, Trivy-scans, then pushes the image to GHCR on version tags
 - **Orchestration** → FastAPI service on a local `kind` cluster, packaged as a Helm chart: a Deployment behind a ClusterIP Service, exposed with the Gateway API (Gateway + HTTPRoute via NGINX Gateway Fabric), with ConfigMap and Secret for configuration, and a HorizontalPodAutoscaler that scales on CPU load
-- **Infrastructure as Code** → real AWS infrastructure provisioned with Terraform: an EC2 instance with SSH locked to my IP, encrypted root disk, IMDSv2 enforced, sitting behind a security group. Remote state stored in an encrypted, versioned S3 bucket with native S3 locking. IAM configured with a least-privilege user, not root
+- **Infrastructure as Code** → AWS infrastructure provisioned with Terraform: an EC2 instance with SSH locked to my IP, encrypted root disk, IMDSv2 enforced, sitting behind a security group. Remote state stored in an encrypted, versioned S3 bucket with native S3 locking. IAM configured with a least-privilege user, not root
 - **Manifest validation** → `helm lint` and `kubeconform` run in CI for Kubernetes/Helm; `terraform fmt`, `terraform validate`, and `tfsec` run in CI for Terraform, catching config issues and security misconfigurations before merge
 
 **Coming next**
