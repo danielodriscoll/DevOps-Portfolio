@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Values.appName }}-servicemonitor
+  labels:
+    # Required — kube-prometheus-stack's Prometheus only picks up ServiceMonitors with this label
+    release: kube-prom-stack
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.appName }}    # matches the label on your Service
+  endpoints:
+    - port: http                    # matches the port name in your Service
+      path: /metrics
+      interval: 30s

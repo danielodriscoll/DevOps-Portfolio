@@ -169,3 +169,17 @@ Made a silly mmistake, adjusted the Dockerfile to be multistage build to fix the
 CMD ["fastapi", "run", "myapp/main.py", "--port", "80"]
 
 So fastapi is the middleman which uses uvicorn under the hood, uvicorn is also in bin folder but also site-packages folder which does get copied across so will work
+
+## Phase 6
+
+So I'll expand phase 3 the kubernetes cluster to accommadate prometheus and Loki metrics & logs and dispaly them using Grafana. It's  abit more costly to do this with phase 5 THE ec2 running the image, so I might just use the AWS native CloudWatch for observability.
+
+App already has /metrics endpoint which we need prometheus to scrape data from in order to monitor.
+
+Installed the kube-prometheus-stack Helm chart using Helm commands into a dedicated namespace called "monitoring" this chart comes bundled with Prometheus, Grafana, Alertmanager, node-exporter, kube-state-metrics, and the Prometheus Operator in one
+
+Added a ServiceMonitor custom resource to the Helm chart (in the templates folder), this is a Kubernetes-native way to register targets/endpoints to scrape with Prometheus.
+
+The reason fo doing this over configuring premtheus.yml file directly is the operator (Service Monitor) watches for CRDs and reconfigures Prometheus automatically. This is a modern approach for Prometheus in Kubernetes.
+
+Grafana comes with pre-built dashboards for Kubernetes internals (nodes, pods, cluster) but nothing for my app until Prometheus starts scraping via the ServiceMonitor.
