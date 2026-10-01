@@ -23,7 +23,7 @@ def test_health(client):
 def test_metrics(client):
     response = client.get("/metrics")
     assert response.status_code == 200
-    assert response.json() == "Coming in Phase 6 of this project"
+    assert "http_requests_total" in response.text or "python_info" in response.text
 
 
 def test_404_route(client):
