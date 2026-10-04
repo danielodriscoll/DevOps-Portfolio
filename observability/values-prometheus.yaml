@@ -1,0 +1,118 @@
+# kube-prometheus-stack — trimmed values for a local kind cluster
+#
+# The default kube-prometheus-stack is sized for real multi-node clusters. On a
+# local kind cluster (8GB laptop) the defaults pegged all CPUs: it scrapes ~15
+# targets, evaluates hundreds of recording/alert rules every interval, and pulls
+# heavy kubelet/cAdvisor metrics — none of which this project needs.
+#
+# This file keeps only what Phase 6 requires: Prometheus (scrape + store),
+# Grafana (dashboards), and the Operator (so the app's ServiceMonitor is picked
+# up automatically). Everything else is disabled, and every remaining component
+# has a hard CPU/memory ceiling so none can starve the node.
+#
+# Usage:
+#   helm install kube-prom-stack prometheus-community/kube-prometheus-stack \
+#     --namespace monitoring --create-namespace \
+#     -f observability/values-prometheus.yaml
+
+# ---------------------------------------------------------------------------
+# Disabled components — not needed for app dashboards, and each one costs CPU
+# ---------------------------------------------------------------------------
+
+# Alertmanager: no alerting configured for this project (dashboards only).
+alertmanager:
+  enabled: false
+
+# node-exporter: node-level host metrics (CPU/mem/disk of the machine).
+# Not used by any of the four app panels.
+nodeExporter:
+  enabled: false
+
+# kube-state-metrics: metrics about Kubernetes objects (deployment status, etc.).
+# Pod count is derived instead from the app's own scrape targets
+# (sum(up{job="fastapi-app"})), so this isn't needed.
+kubeStateMetrics:
+  enabled: false
+
+# defaultRules: the single biggest CPU saver. The chart ships hundreds of
+# built-in recording and alerting rules that Prometheus evaluates on every
+# interval. None are used here.
+defaultRules:
+  create: false
+
+# Control-plane scrape targets. On kind these bind to the node's loopback and
+# show DOWN anyway (kind runs them differently from a managed cluster), so
+# scraping them just wastes repeated failed attempts. kubelet/cAdvisor in
+# particular produces a very large volume of container metrics.
+kubeApiServer:
+  enabled: false
+kubelet:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+kubeEtcd:
+  enabled: false
+coreDns:
+  enabled: false
+
+# ---------------------------------------------------------------------------
+# Prometheus — kept, with short retention and hard resource limits
+# ---------------------------------------------------------------------------
+prometheus:
+  prometheusSpec:
+    scrapeInterval: 30s
+    evaluationInterval: 1m
+    # Short retention keeps disk and memory small; this is a demo, not a
+    # long-term metrics store.
+    retention: 6h
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        # Hard ceiling — Prometheus can never eat the whole node.
+        cpu: 500m
+        memory: 512Mi
+
+# ---------------------------------------------------------------------------
+# Prometheus Operator — kept (it watches the app's ServiceMonitor), limited
+# ---------------------------------------------------------------------------
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# ---------------------------------------------------------------------------
+# Grafana — kept, with limits and relaxed probe timing
+# ---------------------------------------------------------------------------
+# Note on probe timing: an earlier, tighter CPU limit (250m) caused Grafana to
+# start too slowly and miss its liveness probe deadline on this constrained
+# cluster, which killed it mid-boot in a crash loop. The fix was to raise the
+# limits AND relax the probes so startup has room to complete. Lesson: resource
+# limits must account for startup cost, not just steady-state — too tight and a
+# pod can fail to start at all.
+grafana:
+  # Skip the dozens of built-in Kubernetes dashboards; only the app dashboard
+  # (imported separately) is needed.
+  defaultDashboardsEnabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  readinessProbe:
+    initialDelaySeconds: 60
+  livenessProbe:
+    initialDelaySeconds: 60
+    timeoutSeconds: 30
+    failureThreshold: 10
