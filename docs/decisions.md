@@ -183,3 +183,47 @@ Added a ServiceMonitor custom resource to the Helm chart (in the templates folde
 The reason fo doing this over configuring premtheus.yml file directly is the operator (Service Monitor) watches for CRDs and reconfigures Prometheus automatically. This is a modern approach for Prometheus in Kubernetes.
 
 Grafana comes with pre-built dashboards for Kubernetes internals (nodes, pods, cluster) but nothing for my app until Prometheus starts scraping via the ServiceMonitor.
+
+So I readjusted my /metrics endpoint in my app/ , the fastapi-instrumentor package can use the Instrumentor Class to implement a middleware that allows prometheueus to automatically create a /metrics endpoint in order to track app metrics.
+
+When rebuilding the image, came across error: ERROR: failed to build: failed to solve: error getting credentials - err: exit status 1, my docker config file picked up broken Windows helper reference since docker runs on windows. to fix it on WSL echo '{}' > ~/.docker/config.json TO EMPTY THE CONFIG.
+
+New pods wouldn't rollout new v0.6.0 tag because the ghcr.io image repo was set to private during Phase 5 and the kind cluster has no pull secret Old pods stayed up safely because Kubernetes refuses to kill working pods until new ones are healthy, in order to complete rollout i must give GHCR permissions to my cluster
+
+Diagnosed with kubectl describe pod -l app=fastapi-app → "unauthorized" error on image pull.
+
+Same ghcr token already stored in AWS Secrets Manager for the EC2 deployment path, I'll create a seprate one from my Kind cluste rpath to seprate concerns and reduce risk if one ever got exposed.
+
+Noticed something interesting when fixing rollout, after applying new token, 3 pods were rolled out when hpa is set to min 2 , max 4. I thought why 3 pods? get hpa -w said unknown/70% cpu which is the target I set, further investigations with kubectl get pods -n kube-system | grep metrics-server showed metrics-server pod was down?
+
+I have metrics server pod down with CrashLoopBackOff meaning kubernetes keeps restarting it but it crashes? 
+
+Diagnosing the problem more with kubetcl get deployment metrics-server -n kube-system
+
+we get: READY 0/1 which means Deployment wants 1 pod healthy, has 0
+AVAILABLE 0 means no healthy pod available
+UP-TO-DATE 1 means Kubernetes has created the current version which tells me whatever we did create isn't working
+
+describing th epod itself with:  kubectl describe pod -n kube-system -l k8s-app=metrics-server
+
+I got information in the log sthat the conatiner was pulled sucessfully and running, but metrics-server responded with an error when kubelet asked are you ready: Readiness probe failed: HTTP probe failed with statuscode: 500
+
+Continues to see if it's alive but dies: Liveness probe failed: Get "https://10.244.0.10:10250/livez": context deadline exceeded
+
+To get root cause of why metrics-server was failling and retuning 500, I tried fetching the logs the conatiner with: kubectl logs -n kube-system -l k8s-app=metrics-server --previous --tail=100, but it returned nothing.
+
+using kubectl get pods -n kube-system | grep metrics-server, I can see the pod crashed 25 seconds ago which tells me its still restarting over and over with error each time, so when i chekc the logs , a new pod is constantly being made or restarted with new id.
+
+Trying to dig deeper into th eissue i foun dthis to b ete hmost readbale for reading console logs: docker exec devops-portfolio-cluster-control-plane journalctl -u kubelet --no-pager --since "10 minutes ago" | less -S
+
+Here I found metrics-server, nginx-gateway , scheduler etc all thes epods were failing? 
+
+I realised that the default kube-prometheus-stack is built for real multi-node clusters, not a laptop, so out of the box it scraped ~15 targets, evaluated hundreds of recording/alert rules constantly, and pulled heavy kubelet metrics I didn't need, which pegged all 8 CPUs (823%/800% in Docker) and froze the machine. I diagnosed it as resource exhaustion rather than a config bug from the kubelet logs (iptables ChainExists taking 3.7s, housekeeping took too long) and the fact that many unrelated components were failing at once, not just one. The fix came in two parts: first, capping WSL in .wslconfig with memory=3GB, swap=4GB, processors=4, and autoMemoryReclaim=gradual so it can never take more than half my cores or balloon memory and starve Windows; and dealing with wsl --shutdown silently failing because Docker Desktop's background service kept restarting WSL (its engine runs inside WSL), fixed by disabling Docker's start-on-login and fully quitting it before shutdown. Second, rather than patch a cluster that had been crash-looping for 53 days, I deleted it and rebuilt fresh with only what Phase 6 needs: Gateway API CRDs, metrics-server, the ghcr pull secret, my app, and a trimmed monitoring stack with Alertmanager, node-exporter, kube-state-metrics, all control-plane scrapers, and defaultRules disabled, plus hard CPU/memory limits on every remaining component. That dropped node CPU from 823% to ~52% while leaving the app's ServiceMonitor scraping untouched, with the remaining cost being mostly the unavoidable Kubernetes control plane itself. The lesson: observability stacks are far heavier than they look, and on constrained hardware the right move is running only what's strictly needed and capping the VM so one workload can't starve the host.
+
+Built a Grafana dashboard with four panels, each chosen because it maps to one of the "four golden signals" style questions you actually ask about a running service: requests/sec (sum(rate(http_requests_total[1m]))) for traffic, p95 latency (histogram_quantile(0.95, ...) over the duration histogram buckets) for how slow the slowest realistic requests are, error rate (5xx responses over total) for whether it's failing, and running pod count (sum(up{job="fastapi-app"})) to see the HPA react. Together they answer "is it up, is it busy, is it slow, is it erroring" at a glance, which is the point of a dashboard.
+Chose the pod-count query as sum(up{...}) rather than relying on kube-state-metrics, because I disabled kube-state-metrics in the trim. It sums the up value of each healthy scrape target, which gives the live pod count without an extra component running.
+Ran a load test with hey (hey -z 90s -c 8) against the app while watching the dashboard, for two reasons: to prove the metrics pipeline actually captures real traffic (not just a flat idle graph), and to drive CPU past the HPA's 70% target so the pod-count panel visibly climbs from 1 toward its max, then settles back after the cooldown. That live movement is what makes the screenshot worth putting in the README. I kept concurrency modest (-c 8) because heavier runs tipped the laptop into resource exhaustion; the goal was a visible signal, not a stress test.
+The error-rate panel correctly showed no data during normal traffic, since the app has no failing endpoint. That is the honest, healthy state rather than a bug, and I noted it rather than manufacturing errors just to colour the panel.
+Hit a real bug surfaced only by the pipeline: my Phase 1 /metrics was a hand-rolled placeholder returning JSON, so Prometheus rejected it with "unsupported Content-Type". Fixed by wiring in the instrumentator properly (Instrumentator().instrument(app).expose(app)), which serves real Prometheus-format text.
+Made the whole setup reproducible rather than hand-nursed: captured the trimmed stack config in observability/values-prometheus.yaml and wrote a k8s/README.md so anyone can rebuild the cluster from scratch. The cluster is treated as disposable; nothing of value lives only inside it.
+Left Loki out deliberately. Running the full metrics stack already pushed my 8GB laptop to its limit, and adding Loki plus Promtail (which tails and indexes all container logs on every node) would have reinvited the same resource exhaustion I had just fixed. The core observability competency was already demonstrated: metrics collection, scrape configuration via ServiceMonitor, and dashboards. Loki is another data source in Grafana rather than a fundamentally new skill. Logging is instead covered on the EC2 path via CloudWatch (planned Phase 6.5), on infrastructure that is not competing with the laptop. Scoping it out with a documented reason is a more honest engineering decision than cramming in something that half-works.

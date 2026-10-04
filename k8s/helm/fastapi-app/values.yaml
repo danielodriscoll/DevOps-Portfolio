@@ -5,7 +5,7 @@ replicaCount: 3
 # Docker settings
 image:
   repository: ghcr.io/danielodriscoll/devops-portfolio
-  tag: "v0.1.1"
+  tag: "v0.6.0-observability"
   pullPolicy: IfNotPresent
 
 # Service settings
@@ -47,6 +47,7 @@ resources:
 
 # Autoscaling settings (for the HPA, when you add it)
 autoscaling:
-  minReplicas: 2
-  maxReplicas: 4
+  minReplicas: 1
+  maxReplicas: 5
+  
   targetCPUUtilization: 70
