@@ -1,28 +1,26 @@
 # DevOps Portfolio
 
-A small FastAPI app deployed end-to-end through a modern DevOps toolchain: containerised with Docker, orchestrated with Kubernetes, provisioned on AWS with Terraform, configured with Ansible, monitored with Prometheus and Grafana, and wired together by a GitHub Actions CI/CD pipeline. I built this as a learning project from scratch independently, and will finish by using Claude Code to audit the final product for security risks and best practices to see where I can improve.
+A small FastAPI app deployed end-to-end through a modern DevOps toolchain: containerised with Docker, orchestrated with Kubernetes, provisioned on AWS with Terraform, configured with Ansible, monitored with Prometheus and Grafana, and wired together by a GitHub Actions CI/CD pipeline. I built this as a learning project from scratch independently. It's made up of 8 phases with the final phase using Claude Code to audit the final product like a senior engineer would and identify any missed security risks or potential better best practices to see where I can improve and learn from.
 
 ![Architecture](docs/devops_portfolio_architecture.svg)
 
-## What this project demonstrates
+## See it working
 
-A single FastAPI service taken through a real DevOps toolchain: containerised, tested and scanned in CI, then deployed two ways, to Kubernetes with Helm, or to an AWS EC2 instance provisioned by Terraform and configured by Ansible. The Kubernetes deployment is monitored with Prometheus and Grafana. Built from scratch, one phase at a time.
+A 90-second load test (8 concurrent users) through the Gateway on the `kind` cluster. CPU passes the HPA's 70% target, Kubernetes scales the app from 1 to 5 pods, and Prometheus and Grafana capture the traffic as it happens.
 
-**Built so far**
- 
-- **Containerisation** → FastAPI app packaged with Docker using a multi-stage build on a slim Python base, with a `.dockerignore` to keep the image small and free of local/secret files
-- **CI/CD** → GitHub Actions: lint and test on every push and PR to main, plus a release pipeline that builds, Trivy-scans, then pushes the image to a private GHCR repository on version tags
-- **Orchestration** → FastAPI service on a local `kind` cluster, packaged as a Helm chart: a Deployment behind a ClusterIP Service, exposed with the Gateway API (Gateway + HTTPRoute via NGINX Gateway Fabric), with ConfigMap and Secret for configuration, and a HorizontalPodAutoscaler that scales on CPU load
-- **Infrastructure as Code** → AWS infrastructure provisioned with Terraform: an EC2 instance with SSH locked to my IP, encrypted root disk, IMDSv2 enforced, sitting behind a security group. Remote state stored in an encrypted, versioned S3 bucket with native S3 locking. IAM configured with a least-privilege user, not root
-- **Manifest validation** → `helm lint` and `kubeconform` run in CI for Kubernetes/Helm; `terraform fmt`, `terraform validate`, and `tfsec` run in CI for Terraform, catching config issues and security misconfigurations before merge
-- **Configuration management** → Ansible playbook configures the EC2: installs Docker, logs in to GHCR using a token held in AWS Secrets Manager, pulls the private image, runs the container and health checks it. Hosts are discovered with the AWS dynamic inventory plugin, so no IPs are hardcoded
-- **Observability** → trimmed `kube-prometheus-stack` on the `kind` cluster: Prometheus discovers the app through a ServiceMonitor in the Helm chart, and a Grafana dashboard tracks requests/sec, p95 latency, error rate and running pod count
+| Grafana: traffic spike and pods scaling | HPA: CPU past target, replicas 1 → 5 |
+|---|---|
+| ![Grafana dashboard during the load test](docs/images/Grafana-Metrics-post-load-test.png) | ![HPA autoscaling under load test](docs/images/HPA-Autoscaling-under-load-test.png) |
 
-**Coming next**
- 
-- Clean up: polish documentation and ADRs, tidy the repo
-- A final AI-assisted security and best-practice review
-  
+<details>
+<summary>Dashboard before the load test</summary>
+
+![Grafana dashboard before load test](docs/images/Grafana-Metrics-pre-load-test.png)
+
+</details>
+
+## Roadmap
+
 | Phase | Area | Status |
 |---|---|---|
 | 1 | FastAPI app + Docker | ✅ Done |
@@ -33,188 +31,106 @@ A single FastAPI service taken through a real DevOps toolchain: containerised, t
 | 6 | Observability (Prometheus / Grafana) | ✅ Done |
 | 7 | Clean up, ADRs, documentation | 📋 Planned |
 | 8 | AI-assisted code review and hardening | 📋 Planned |
+
+## What this project demonstrates
+
+| Skill | What it shows |
+|---|---|
+| **Containerisation** | FastAPI app packaged with Docker using a multi-stage build on a slim Python base. `.dockerignore` keeps the image small and free of local/secret files |
+| **CI/CD** | GitHub Actions lints and tests on every push and PR to `main`. A release pipeline builds, Trivy-scans, then pushes the image to a private GHCR repo on version tags |
+| **Orchestration** | Helm chart on a local `kind` cluster: Deployment behind a ClusterIP Service, exposed via Gateway API (Gateway + HTTPRoute, NGINX Gateway Fabric). ConfigMap and Secret for config, HPA scaling on CPU |
+| **Infrastructure as Code** | Terraform provisions an EC2 instance with SSH locked to my IP, encrypted root disk, IMDSv2 enforced, behind a security group. Remote state in an encrypted, versioned S3 bucket with native locking. Least-privilege IAM user, not root |
+| **Configuration management** | Ansible installs Docker, logs in to GHCR using a token from AWS Secrets Manager, pulls the private image, runs the container and health checks it. AWS dynamic inventory, so no IPs are hardcoded |
+| **Manifest validation** | CI runs `helm lint` and `kubeconform` for Kubernetes/Helm, and `terraform fmt`, `terraform validate` and `tfsec` for Terraform, catching config issues and security misconfigurations before merge |
+| **Observability** | Trimmed `kube-prometheus-stack` on `kind`. Prometheus discovers the app via a ServiceMonitor in the Helm chart. Grafana dashboard tracks requests/sec, p95 latency, error rate and running pod count |
  
 ## Tech stack
  
 | Layer | Tool |
 |---|---|
 | Application | Python 3.14, FastAPI, Uvicorn |
-| Testing & linting | pytest, Ruff |
-| Containers | Docker |
-| Orchestration | Kubernetes (kind), Gateway API, Helm |
+| Testing & linting | pytest (+ httpx test client), Ruff |
+| Containers | Docker (multi-stage build, `python:3.14-slim`) |
+| Orchestration | Kubernetes (kind), Helm, Gateway API (NGINX Gateway Fabric), HPA + metrics-server |
 | CI/CD | GitHub Actions |
 | Registry | GitHub Container Registry (ghcr.io, private) |
-| Image scanning | Trivy |
-| Cloud & IaC | AWS (EC2, S3, IAM, Secrets Manager), Terraform, tfsec |
-| Config management | Ansible |
+| Security & validation | Trivy (images), tfsec (Terraform), kubeconform + `helm lint` (manifests) |
+| Cloud & IaC | AWS (EC2 on Amazon Linux 2023, S3, IAM, Secrets Manager), Terraform |
+| Config management | Ansible (`amazon.aws` dynamic inventory, `community.docker`) |
 | Observability | Prometheus, Grafana (kube-prometheus-stack), prometheus-fastapi-instrumentator |
+| Load testing | `hey` |
 
 ## Repository structure
 
+Folders are listed in the order they're built, with the phase that introduces each one.
+
 ```
 .
-├── myapp/              # FastAPI app, Dockerfile, tests
-├── k8s/
-│   └── helm/           # Helm chart (Deployment, Service, Gateway, HTTPRoute, ConfigMap, Secret, HPA, ServiceMonitor)
-├── terraform/
-│   ├── bootstrap/      # One-off config that creates the S3 state bucket
-│   └── *.tf            # Main config: EC2, security group, key pair, IAM role, Secrets Manager, backend
-├── ansible/            # Playbook, config and AWS dynamic inventory for the EC2
-├── observability/      # Trimmed kube-prometheus-stack values and the Grafana dashboard
-├── .github/workflows/  # CI/CD pipelines
-└── docs/               # Architecture diagram, ADRs and screenshots
-
+├── myapp/                           Phase 1 · the application
+│   ├── main.py                        FastAPI app: /, /health, /metrics
+│   ├── tests/                         pytest suite
+│   ├── Dockerfile                     multi-stage build on python:3.14-slim
+│   └── requirements*.txt              runtime deps / dev + test deps
+│
+├── .github/workflows/               Phase 2 · CI/CD
+│   ├── ci.yml                         lint, test, helm lint, kubeconform, terraform validate, tfsec
+│   └── push-image.yml                 on version tags: build → Trivy scan → push to GHCR
+│
+├── k8s/helm/fastapi-app/            Phase 3 · Kubernetes
+│   ├── values.yaml                    the one file to edit (image, replicas, resources, HPA)
+│   ├── templates/                     Deployment, Service, Gateway, HTTPRoute, ConfigMap,
+│   │                                  Secret, HPA, ServiceMonitor
+│   └── README.md                      full cluster rebuild guide + troubleshooting
+│
+├── terraform/                       Phase 4 · AWS infrastructure
+│   ├── bootstrap/                     run once: creates the S3 bucket for remote state
+│   ├── main.tf                        EC2, security group, key pair, IAM role, Secrets Manager
+│   ├── variables.tf / outputs.tf      inputs (values go in gitignored terraform.tfvars) / public IP
+│   └── backend.tf                     points state at the bootstrap bucket
+│
+├── ansible/                         Phase 5 · configuration
+│   ├── playbook.yml                   install Docker, pull private image, run + health check
+│   ├── inventory.aws_ec2.yml          finds the EC2 by tag, so no hardcoded IPs
+│   └── ansible.cfg, requirements.yml
+│
+├── observability/                   Phase 6 · monitoring
+│   ├── values-prometheus.yaml         trimmed kube-prometheus-stack for a laptop
+│   └── dashboards/fastapi.json        Grafana dashboard (traffic, latency, errors, pods)
+│
+└── docs/                            write-ups
+    ├── setup/                         step-by-step setup guides, one per phase
+    ├── decisions.md                   architecture decisions and trade-offs
+    ├── What-I-Learned.md              lessons from each phase
+    └── images/                        screenshots
 ```
 
 ## Getting started
 
-### Prerequisites
-
-- Python 3.14+
-- Docker
-- `kind` + `kubectl` (only for the Kubernetes deployment)
-- `helm` (only for the Kubernetes deployment and monitoring stack)
-- `terraform` + AWS CLI (only for the AWS deployment)
-- `ansible` (only for the AWS deployment)
-
-### Run the app locally
+**Quick start:** run the app in a container (needs only Docker):
 
 ```bash
-# Clone and enter the repo
 git clone https://github.com/danielodriscoll/devops-portfolio.git
 cd devops-portfolio
-
-# Set up the Python environment
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r myapp/requirements.txt -r myapp/requirements-dev.txt
-
-# Start the dev server (http://localhost:8000)
-fastapi dev myapp/main.py
-
-# In another terminal, verify it's running
-curl localhost:8000/health
-curl localhost:8000/metrics     # Prometheus-format metrics
+docker build -t devops-portfolio myapp
+docker run --rm -p 8080:80 devops-portfolio
+curl localhost:8080/health      # {"status":"ok"}
 ```
 
-### Run with Docker
+**Build it yourself, phase by phase.** Each guide picks up where the last one left off and ends with a ✅ checkpoint, so you know it worked before moving on.
 
-```bash
-cd myapp
-docker build -t devops-portfolio .
-docker run -p 8080:80 devops-portfolio
+| Phase | Guide |
+|---|---|
+| 0 | [Before you start: tools, forking, security ground rules](docs/setup/setup-phase-0.md)
+| 1 | [FastAPI app + Docker](docs/setup/setup-phase-1.md)
+| 2 | [CI/CD with GitHub Actions](docs/setup/setup-phase-2.md)
+| 3 | [Kubernetes on kind (Helm, Gateway API, HPA)](docs/setup/setup-phase-3.md)
+| 4 | [AWS infrastructure with Terraform](docs/setup/setup-phase-4.md)
+| 5 | [Configure the EC2 with Ansible](docs/setup/setup-phase-5.md)
+| 6 | [Observability with Prometheus and Grafana](docs/setup/setup-phase-6.md)
 
-curl localhost:8080/health
-```
-
-### Run the tests
-
-```bash
-pytest -v
-```
-
-### Deploy to a local Kubernetes cluster
-
-The image on ghcr.io is private, so the cluster needs an image pull secret. The full step-by-step rebuild (Gateway API CRDs, metrics-server, pull secret, app and monitoring stack) is in [`k8s/helm/fastapi-app/README.md`](k8s/helm/fastapi-app/README.md). The short version:
-
-```bash
-# Spin up a local cluster
-kind create cluster --name devops-portfolio-cluster
-
-# Install the Gateway API CRDs, NGINX Gateway Fabric, metrics-server and the
-# ghcr-pull-secret first (see the chart README), then:
-helm install fastapi-app ./k8s/helm/fastapi-app
-
-# Check the pods come up
-kubectl get pods
-
-# Port-forward the Gateway and hit the app
-kubectl port-forward -n nginx-gateway svc/ngf-nginx-gateway-fabric 8080:80
-curl localhost:8080/health
-```
-
-### Deploy to AWS with Terraform
- 
-```bash
-# Bootstrap the state bucket (only needed once, ever)
-cd terraform/bootstrap
-terraform init
-terraform apply
- 
-# Deploy the main infrastructure (EC2, security group, key pair, IAM role, secret)
-cd ../
-terraform init          # picks up the S3 backend
-terraform plan          # review before applying
-terraform apply         # creates the EC2: real resources, real (small) cost
- 
-# Get the public IP and SSH in
-terraform output instance_public_ip
-ssh -i ~/.ssh/id_ed25519 ec2-user@<public-ip>
- 
-# Tear it down when done for the session, EC2 bills per hour
-terraform destroy
-```
- 
-You'll need a `terraform/terraform.tfvars` file with your public IP and SSH public key (both gitignored):
-```hcl
-my_ip          = "YOUR.IP/32"
-ssh_public_key = "ssh-ed25519 AAAA..."
-```
-
-### Configure the EC2 with Ansible
-
-Terraform creates an empty Secrets Manager secret (`devops-portfolio/ghcr-token`). Store a GHCR token with `read:packages` scope in it once, then run the playbook:
-
-```bash
-# Store the GHCR pull token (one time only)
-aws secretsmanager put-secret-value \
-  --secret-id devops-portfolio/ghcr-token \
-  --secret-string "<ghcr-token>"
-
-cd ansible
-ansible-galaxy collection install -r requirements.yml
-
-# Confirm the dynamic inventory finds the EC2 (matched by its Project tag)
-ansible-inventory --graph
-
-# Install Docker, pull the image, run the container and health check it
-ansible-playbook playbook.yml
-
-curl http://<public-ip>/health
-```
-
-### Run the monitoring stack
-
-With the app running on `kind`:
-
-```bash
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
-
-helm install kube-prom-stack prometheus-community/kube-prometheus-stack \
-  --namespace monitoring --create-namespace \
-  -f observability/values-prometheus.yaml
-
-# Grafana at http://localhost:3000
-kubectl port-forward -n monitoring svc/kube-prom-stack-grafana 3000:80
-```
-
-Import `observability/dashboards/fastapi.json` in Grafana and select the Prometheus data source.
-
-## Build phases
-
-This project is built incrementally. Each tagged release reflects the completion of one phase.
-
-- [x] **Phase 1**: FastAPI app + Docker
-- [x] **Phase 2**: GitHub Actions CI/CD pipeline
-- [x] **Phase 3**: Kubernetes deployment (kind + Helm)
-- [x] **Phase 4**: AWS infrastructure with Terraform
-- [x] **Phase 5**: Ansible configuration management
-- [x] **Phase 6**: Observability (Prometheus, Grafana)
-- [ ] **Phase 7**: Clean up, ADRs, documentation
-- [ ] **Phase 8**: AI-assisted code review and hardening
 
 ## Architecture decisions
+*(Updated as I complete each phase.)*
 
 Key decisions and trade-offs are documented in [`docs/decisions.md`](docs/decisions.md).
 
@@ -222,92 +138,7 @@ Key decisions and trade-offs are documented in [`docs/decisions.md`](docs/decisi
 
 *(Updated as I complete each phase.)*
 
-### Phase 1: FastAPI app + Docker
-
-- Used the `python:3.14-slim` base image instead of the full image → smaller container, less surface area, fewer CVEs for Trivy to flag later.
-- A `.dockerignore` matters even this early → it keeps the venv, caches and local files out of the image so it stays small and doesn't ship anything I don't want in there.
-- Added a `/health` endpoint from the start, since that's what Kubernetes uses for liveness/readiness probes in Phase 3 → cheaper to build it in now than bolt it on later.
-- Wrote tests for the happy paths and a 404 so the Phase 2 pipeline has something real to check before it ever builds an image.
-- The container listens on port 80 internally, so I map it with `-p 8080:80` when running locally to avoid clashing with other things.
-
-### Phase 2: CI/CD
-
-- Using `cache: 'pip'` makes the pipeline faster by restoring dependencies instead of downloading each run.
-- Set up branch rules so features can't merge to main unless lint, test and docker-build pass. Also blocks force pushes and deletion of main.
-- Scanning an image after pushing it to a registry defeats the point. Changed the flow to lint, test, docker, where docker builds and scans before pushing, and only pushes on main.
-- A lot of failed runs were things I could have checked locally first. Running commands like `ruff check .` and `pytest` before pushing saves the push and wait cycle.
-- Trivy shows what CVEs are in an image. Learned the difference between fixable and unfixable ones, and that severity doesn't always mean real risk. Learned to work around unfixable errors.
-- `.gitignore` won't hide sensitive info on a Docker image, use a `.dockerignore` file.
-- Combining lint, pytest and docker build was causing multiple slow runs together on every push. Split into two workflows, and docker only runs on a pushed tag e.g. `v0.1.0`.
-
-### Phase 3: Kubernetes deployment (kind + Helm)
-
-- `kind` runs a real Kubernetes cluster inside Docker; `kubectl` is how you talk to it. Rolling out a new image version (via `kubectl set image` or an updated Deployment) scales pods up by one then removes an old one, keeping the app available throughout, and rollouts are tagged so you can revert.
-- Chose the Gateway API over Ingress: it separates infrastructure ownership (the Gateway) from application routing (the HTTPRoute) using proper typed fields instead of vendor-specific annotations, and the community `ingress-nginx` controller reached end of life in March 2026.
-- Converted the hardcoded raw manifests into a Helm chart → templated values with a single `values.yaml`, so changing config no longer means editing every file. Removed the raw files afterward to avoid confusion; the templated placeholders are harder to read, but the reusability, rollback, and single source of truth are worth it.
-- Hit a Helm ownership error: it refused to adopt a Service that already existed from an earlier `kubectl apply`, because it lacked Helm's management labels. Fixed by deleting the raw objects first, then letting Helm create everything fresh with proper ownership metadata.
-- The HorizontalPodAutoscaler needs `metrics-server` to read pod CPU/memory. On `kind` it failed its readiness check with a 500 because kubelet's self-signed certs aren't trusted by default → patched it with `--kubelet-insecure-tls`, acceptable for local dev but not production.
-- When the HPA is active it overrides the replica count set in the Deployment/values → I set 3, it scaled down to my configured minimum of 2 based on real CPU usage.
-- Load-tested with `hey` (10 concurrent users for 60s through the Gateway) to push CPU past the 70% target → watched the HPA scale from 2 to 4 replicas, then back down after a ~5 minute cooldown. Used `kubectl port-forward` to point a laptop port at the Gateway for the test.
-- Added `helm lint` and `kubeconform` as CI jobs. Helm's `{{ }}` templating isn't valid Kubernetes YAML, so `helm template` renders it to a plain file first, which kubeconform then validates. Gateway/HTTPRoute aren't core Kubernetes types, so kubeconform needs `-schema-location` pointing at a CRD schema catalogue to validate them.
-- Installed kubeconform via its official release binary rather than a community GitHub Action → for a trivial download, rolling it myself avoids adding an unvetted third-party dependency to the pipeline (unlike `azure/setup-helm`, which is an official Microsoft action).
-- Trivy caught that my `requirements.txt` (generated with `pip freeze`) was shipping unrelated tooling (Ansible, pytest, ruff) inside the production image, causing both bloat and vulnerabilities. Split into a runtime `requirements.txt` and a separate dev/test one; the image installs only runtime deps, CI installs both.
-- The remaining Trivy findings weren't my code at all → they were outdated build tools (`setuptools`, `wheel`) baked into the `python:3.14-slim` base image. Rewrote the Dockerfile as a multi-stage build so build tooling stays in a throwaway stage and never reaches the final image, and stripped the leftover build tools from the runtime stage to clear the last vendored-copy CVEs.
-- Learned the practical shape of vulnerability management: you don't fix it once. Some findings are unfixable (awaiting upstream), some aren't real risk in context, and the goal is to patch what you cleanly can, minimise attack surface, and document the rest.
-
-### Phase 4: AWS infrastructure with Terraform
- 
-- New AWS accounts (post-July 2025) are on a credit-based Free plan → $100 in credits at signup, up to $200 with onboarding tasks, six-month lifespan. Different from the old 12-month free tier that most tutorials still describe. The upside: the Free plan can't surprise-bill; if credits run out the account just stops.
-- Cost safety comes first, before anything is provisioned: a $1 AWS Budget alert, Free Tier usage alerts, and the habit of `terraform destroy` at the end of every session. The real traps aren't the EC2 itself but the surrounding bits (Elastic IPs, NAT Gateways, orphaned EBS volumes) that keep billing after you think you're clean.
-- Created a dedicated IAM user (`terraform-user`) with programmatic access keys instead of using root credentials. Root should never touch Terraform → if those keys leak, the whole account is gone. The IAM user gets narrower permissions and a separate credential lifecycle.
-- Chicken-and-egg problem with remote state: Terraform's backend config is read *before* it creates anything, so I can't store state in an S3 bucket that Terraform itself hasn't created yet. Solved with a two-step bootstrap → a small `terraform/bootstrap/` config with local state creates the S3 bucket (versioned, encrypted, public access blocked), then the main config's `backend.tf` points at that now-existing bucket for remote state.
-- State is Terraform's *memory* of what it has built. It downloads state at the start of each run, compares against my `.tf` code, and computes the minimal diff. That's what makes Terraform declarative rather than imperative: I describe the desired end state, and it figures out what to change (in-place update, replace, destroy) with `~` and `-/+` symbols in the plan.
-- `variables.tf` declares what inputs the config needs; the actual values go in `terraform.tfvars`, which is gitignored. Same config-vs-value split as Helm's `values.yaml`, same reason: the declaration is public (safe to commit), the values are private (my IP, my SSH public key). Inline comments in `.gitignore` broke the pattern match and nearly leaked my IP → moved them to separate lines.
-- Reading files from local paths (`file("~/.ssh/id_ed25519.pub")`) breaks CI, because the runner doesn't have my SSH key. Refactored to pass the public key as a variable → same effect, no filesystem dependency, config runs anywhere.
-- Home broadband IPs change → SSH suddenly stopped working one morning until I updated `terraform.tfvars` with the new IP and re-applied. Terraform's diff was `1 to change`, not `3 to add`: it modified the security group rule in place and left the EC2 untouched. Concrete demonstration of state doing its job.
-- An EC2 instance has two IPs at once: a public one (how the internet reaches it) and a private one (AWS-internal networking). SSH connects via the public IP; the shell prompt shows the private one as the machine's internal hostname. Together with my own IP (in the firewall rule), there were three IPs in play during a single SSH session.
-- Followed the principle of least exposure: locked *both* SSH and HTTP to my IP during testing, rather than opening HTTP to `0.0.0.0/0` from the start. Opening a port publicly should be a deliberate decision, not a default.
-- Added Terraform validation to CI as two separate jobs: `terraform-validate` runs `fmt -check` and `validate` (using `init -backend=false` so it needs no AWS credentials), and `terraform-security` runs `tfsec` to catch misconfigurations. IaC equivalent of Trivy scanning Docker images.
-- Hardened the EC2 based on tfsec findings: enabled IMDSv2 (blocks SSRF attacks from stealing IAM credentials via the metadata service, the mechanism behind the 2019 Capital One breach) and encrypted the root EBS volume at rest (compliance baseline, free with one flag). Documented and ignored the open-egress finding with an inline `#tfsec:ignore` and prose comment explaining why → the server needs outbound to pull updates and images, egress filtering would be defence-in-depth but is out of scope.
-- Same triage discipline as Trivy in Phase 3: fix what's cheap and real, document-and-accept what's a deliberate trade-off, defer the rest with rationale. That decision trail matters more than a green scan.
-
-### Phase 5: Ansible configuration management
-
-- Terraform builds the infrastructure, Ansible configures what runs on it (packages, services, containers). I could have used a shell script in Terraform's `user_data`, but that only runs on first boot and isn't idempotent → any change means a new instance. Ansible checks the current state and only changes what needs changing.
-- Used the `amazon.aws.aws_ec2` dynamic inventory plugin, filtered on the `Project` tag Terraform sets, instead of a static hosts file. The EC2 gets a new IP every time I destroy and re-apply, so hardcoding it would break every session.
-- Made the GHCR image private and stored a `packages:read` only token in AWS Secrets Manager, provisioned by Terraform alongside everything else. It's kept in the cloud rather than on my laptop, which is safer and more practical for a team. Trade-off: it costs about $0.40 a month per secret.
-- Learned the difference between two identities used at two different times: `terraform-user` (my laptop, building infrastructure) and an IAM role attached to the EC2 through an instance profile (the running server, temporary credentials via the metadata service, scoped to reading one secret). Users are for long-lived credentials, roles are short-lived permissions, policies define what either can do. Attaching an instance profile forces the EC2 to be replaced, which is fine here since I destroy it after every session.
-- Terraform failed with `not authorized to perform: iam:CreateRole` and `secretsmanager:CreateSecret`. That's least privilege working as intended → `terraform-user` only had what earlier phases needed, so I widened its policies deliberately rather than reaching for admin.
-- tfsec flagged the secret using the default AWS-managed KMS key. A customer-managed key costs money and goes against the free plan, and the secret is still encrypted at rest, so I documented and accepted it. In production I would use my own key and key policy.
-- Ansible refused to load `ansible.cfg` from a world-writable directory, a security default that stops someone else editing config Ansible will run. Fixed with `chmod 755` so only the owner can write to it.
-- Ansible lookup plugins run on the controller (my laptop), not the target host. So the Secrets Manager lookup uses my laptop's credentials, not the EC2's role. Fine for this project, but in a CI-driven deploy with no local AWS credentials, the module form running on the EC2 under its own role is the right pattern.
-- The playbook surfaced real issues: a `requests` package conflict with what Amazon Linux already ships (fixed with `--ignore-installed requests`), and a GHCR login failure because my 30-day token had expired, which is the expiry policy I set in an earlier phase doing its job.
-- Found a bug from Phase 3: the multi-stage Dockerfile never copied the `fastapi` CLI into the final stage, so the container couldn't start. I'd changed the Dockerfile without building and running the image myself. Switched the `CMD` to `python -m uvicorn`, which lives in `site-packages` and does get copied. The final health check task in the playbook is what caught it.
-- Running `git add` and `git commit` from inside `ansible/` only staged that folder, and a `git restore` afterwards wiped uncommitted work. Recovered it through VS Code's local history. Lesson: `git add -A` from the repo root, and check `git status` before restoring anything.
-
-### Phase 6: Observability (Prometheus, Grafana)
-
-- Installed the `kube-prometheus-stack` Helm chart into a dedicated `monitoring` namespace. It bundles Prometheus, Grafana and the Prometheus Operator in one install.
-- Registered the app as a scrape target with a ServiceMonitor in the app's own Helm chart instead of editing `prometheus.yml` by hand. The Operator watches for ServiceMonitors and reconfigures Prometheus automatically, which is the Kubernetes-native way to do it.
-- My Phase 1 `/metrics` endpoint was a placeholder returning JSON, so Prometheus rejected it with `unsupported Content-Type`. Replaced it with `prometheus-fastapi-instrumentator` (`Instrumentator().instrument(app).expose(app)`), which adds middleware and serves real Prometheus-format metrics.
-- The new `v0.6.0` rollout stalled with `ImagePullBackOff` because the image went private in Phase 5 and the cluster had no pull secret. The old pods stayed up the whole time, since Kubernetes won't remove healthy pods until new ones are ready. Created a separate GHCR token for the cluster rather than reusing the EC2 one, so a leak in one environment doesn't force rotation everywhere.
-- The default stack is sized for real multi-node clusters, not a laptop. It scraped ~15 targets and evaluated hundreds of rules, pegging all 8 CPUs (823% in Docker) and crash-looping metrics-server, the gateway and the scheduler. I diagnosed it as resource exhaustion rather than a config bug from the kubelet logs (`docker exec ... journalctl -u kubelet`) and the fact that many unrelated components were failing at once.
-- Fixed it in two parts. First, capped WSL in `.wslconfig` (`memory=3GB`, `swap=4GB`, `processors=4`) so it can't starve the host, and stopped Docker Desktop from silently restarting WSL. Second, rebuilt the cluster from scratch with a trimmed stack in `observability/values-prometheus.yaml`: Alertmanager, node-exporter, kube-state-metrics, default rules and control-plane scrapers disabled, with hard CPU/memory limits on everything left. Node CPU dropped from 823% to ~52%.
-- Built a Grafana dashboard around the questions you actually ask of a running service: requests/sec (is it busy), p95 latency (is it slow), 5xx error rate (is it failing) and running pod count (is the HPA reacting). Pod count uses `sum(up{job="fastapi-app"})` because kube-state-metrics was trimmed out.
-- Load-tested with `hey -z 90s -c 8` while watching the dashboard to prove the pipeline captures real traffic and to push CPU past the HPA's 70% target. Kept concurrency modest because heavier runs tipped the laptop back into resource exhaustion. The error-rate panel correctly shows no data, since nothing is failing, and I left it that way rather than manufacturing errors.
-- Made the setup reproducible: the trimmed values file, the dashboard JSON and a cluster rebuild guide mean the cluster is disposable and nothing of value lives only inside it.
-- Docker builds on WSL failed with `error getting credentials` because `~/.docker/config.json` referenced the Windows credential helper. Emptying the config fixed it.
-- **Out of scope: centralised logging (Loki).** Running the metrics stack already pushed my 8GB laptop to its limit, and adding Loki plus Promtail would have brought back the same resource exhaustion I had just fixed. Metrics collection, ServiceMonitor scrape config and dashboards already demonstrate the core skill, and Loki would be another Grafana data source rather than a new one. Scoping it out with a documented reason is more honest than shipping something that half works. See [`docs/decisions.md`](docs/decisions.md).
-
-**Grafana dashboard before and after a load test**
-
-| Before load test | After load test |
-|---|---|
-| ![Grafana dashboard before load test](docs/images/Grafana-Metrics-pre-load-test.png) | ![Grafana dashboard after load test](docs/images/Grafana-Metrics-post-load-test.png) |
-
-**HPA scaling pods under load**
-
-![HPA autoscaling under load test](docs/images/HPA-Autoscaling-under-load-test.png)
+[`docs/What-I-Learned.md`](docs/What-I-Learned.md).
 
 ## Final review and hardening
 

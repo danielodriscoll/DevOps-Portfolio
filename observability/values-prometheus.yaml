@@ -1,9 +1,9 @@
-# kube-prometheus-stack — trimmed values for a local kind cluster
+# kube-prometheus-stack has trimmed values for the local kind cluster on my laptop
 #
 # The default kube-prometheus-stack is sized for real multi-node clusters. On a
-# local kind cluster (8GB laptop) the defaults pegged all CPUs: it scrapes ~15
+# local kind cluster (8GB laptop) the defaults were working heavy on all CPUs: it scrapes ~15
 # targets, evaluates hundreds of recording/alert rules every interval, and pulls
-# heavy kubelet/cAdvisor metrics — none of which this project needs.
+# heavy kubelet/cAdvisor metrics, none of which this project needs nor my laptop could handle
 #
 # This file keeps only what Phase 6 requires: Prometheus (scrape + store),
 # Grafana (dashboards), and the Operator (so the app's ServiceMonitor is picked
