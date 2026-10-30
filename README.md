@@ -29,8 +29,8 @@ A 90-second load test (8 concurrent users) through the Gateway on the `kind` clu
 | 4 | Terraform on AWS (EC2 + S3 remote state + tfsec) | ✅ Done |
 | 5 | Ansible configuration (+ AWS Secrets Manager, EC2 IAM role) | ✅ Done |
 | 6 | Observability (Prometheus / Grafana) | ✅ Done |
-| 7 | Clean up, ADRs, documentation | 📋 Planned |
-| 8 | AI-assisted code review and hardening | 📋 Planned |
+| 7 | Clean up, decision log, reproducible setup guides | ✅ Done |
+| 8 | Senior-engineer style review (AI-assisted) | ✅ Done |
 
 ## What this project demonstrates
 
@@ -39,7 +39,7 @@ A 90-second load test (8 concurrent users) through the Gateway on the `kind` clu
 | **Containerisation** | FastAPI app packaged with Docker using a multi-stage build on a slim Python base. `.dockerignore` keeps the image small and free of local/secret files |
 | **CI/CD** | GitHub Actions lints and tests on every push and PR to `main`. A release pipeline builds, Trivy-scans, then pushes the image to a private GHCR repo on version tags |
 | **Orchestration** | Helm chart on a local `kind` cluster: Deployment behind a ClusterIP Service, exposed via Gateway API (Gateway + HTTPRoute, NGINX Gateway Fabric). ConfigMap and Secret for config, HPA scaling on CPU |
-| **Infrastructure as Code** | Terraform provisions an EC2 instance with SSH locked to my IP, encrypted root disk, IMDSv2 enforced, behind a security group. Remote state in an encrypted, versioned S3 bucket with native locking. Least-privilege IAM user, not root |
+| **Infrastructure as Code** | Terraform provisions an EC2 instance with SSH locked to my IP, encrypted root disk, IMDSv2 enforced, behind a security group. Remote state in an encrypted, versioned S3 bucket with native locking. Dedicated IAM user for Terraform, never root, and a separate IAM role for the EC2 scoped to one secret |
 | **Configuration management** | Ansible installs Docker, logs in to GHCR using a token from AWS Secrets Manager, pulls the private image, runs the container and health checks it. AWS dynamic inventory, so no IPs are hardcoded |
 | **Manifest validation** | CI runs `helm lint` and `kubeconform` for Kubernetes/Helm, and `terraform fmt`, `terraform validate` and `tfsec` for Terraform, catching config issues and security misconfigurations before merge |
 | **Observability** | Trimmed `kube-prometheus-stack` on `kind`. Prometheus discovers the app via a ServiceMonitor in the Helm chart. Grafana dashboard tracks requests/sec, p95 latency, error rate and running pod count |
@@ -97,10 +97,11 @@ Folders are listed in the order they're built, with the phase that introduces ea
 │   ├── values-prometheus.yaml         trimmed kube-prometheus-stack for a laptop
 │   └── dashboards/fastapi.json        Grafana dashboard (traffic, latency, errors, pods)
 │
-└── docs/                            write-ups
+└── docs/                            Phases 7–8 · write-ups
     ├── setup/                         step-by-step setup guides, one per phase
     ├── decisions.md                   architecture decisions and trade-offs
     ├── What-I-Learned.md              lessons from each phase
+    ├── review.md                      Phase 8 senior review: risks, flaws, next steps
     └── images/                        screenshots
 ```
 
@@ -130,27 +131,24 @@ curl localhost:8080/health      # {"status":"ok"}
 
 
 ## Architecture decisions
-*(Updated as I complete each phase.)*
 
-Key decisions and trade-offs are documented in [`docs/decisions.md`](docs/decisions.md).
+Key decisions and trade-offs, phase by phase, are in [`docs/decisions.md`](docs/decisions.md).
 
 ## What I learned
 
-*(Updated as I complete each phase.)*
+Problems I hit, how I diagnosed them and what they taught me: [`docs/What-I-Learned.md`](docs/What-I-Learned.md).
 
-[`docs/What-I-Learned.md`](docs/What-I-Learned.md).
+## Senior review (Phase 8)
 
-## Final review and hardening
+Once every phase was built and documented, I had Claude Code review the finished repo the way a senior engineer would review a real PR: security risks, flaws, design decisions, practices and what to build next.
 
-After completing all build phases, this project will go through a comprehensive code review using Claude Code. The goal is to treat the finished repo the way a senior engineer would on a real PR → looking for vulnerabilities, anti-patterns, and improvements I'd missed.
+The findings are in [`docs/review.md`](docs/review.md), ranked by priority. I've left the code as I built it so the review reads against the real thing; working through the findings is the next iteration of the project.
 
-Findings, the changes I made in response, and anything I deliberately *didn't* change (and why) will be documented in [`docs/review.md`](docs/review.md). (Phase 8)
-
-This step happens **after** the project is built and cleaned up; the code, decisions, and structure throughout the phases are mine. The review is a final quality gate, not a co-author.
+The code, decisions and structure across Phases 1–7 are mine. The review is a final quality gate, not a co-author.
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+Apache 2.0, see [LICENSE](LICENSE).
 
 ## About me
 
