@@ -3,7 +3,7 @@ kind: ServiceMonitor
 metadata:
   name: {{ .Values.appName }}-servicemonitor
   labels:
-    # Required — kube-prometheus-stack's Prometheus only picks up ServiceMonitors with this label
+    # Required: kube-prometheus-stack's Prometheus only picks up ServiceMonitors with this label
     release: kube-prom-stack
 spec:
   selector:

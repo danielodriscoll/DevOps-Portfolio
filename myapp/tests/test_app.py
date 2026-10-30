@@ -1,3 +1,6 @@
+##phase 2
+##simple pytests for CI checks
+
 import pytest
 from myapp.main import app
 from fastapi.testclient import TestClient

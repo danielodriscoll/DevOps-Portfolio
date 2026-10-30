@@ -47,11 +47,11 @@ jobs:
       - uses: actions/checkout@v6
       - name: Install Helm
         uses: azure/setup-helm@v4
-      - name: Install kubeconform                                    # NEW — install the binary onto the runner
+      - name: Install kubeconform                                    
         run: |
           curl -Lo kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-amd64.tar.gz
           tar -xzf kubeconform.tar.gz
-          sudo mv kubeconform /usr/local/bin/                        # put it on PATH so the next step can call it
+          sudo mv kubeconform /usr/local/bin/                        
       - name: Render and validate manifests
         run: |
           helm template fastapi-app ./k8s/helm/fastapi-app > rendered.yaml

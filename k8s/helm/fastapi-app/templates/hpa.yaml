@@ -6,10 +6,10 @@ spec:
   scaleTargetRef:                                    # WHICH Deployment this HPA controls
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ .Values.appName }}-deployment          # must exactly match your Deployment's real name
+    name: {{ .Values.appName }}-deployment          # must exactly match the Deployment's real name
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
-  metrics:                                           # WHAT signal drives scaling decisions
+  metrics:                                           # WHAT drives scaling decisions
     - type: Resource
       resource:
         name: cpu
